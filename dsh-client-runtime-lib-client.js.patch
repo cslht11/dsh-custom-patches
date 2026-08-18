@@ -1,0 +1,109 @@
+--- /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-runtime/lib/client.js.bak	2026-08-16 21:37:28
++++ /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-runtime/lib/client.js	2026-08-16 22:05:11
+@@ -6337,6 +6337,8 @@
+ 			contextsByKind = /* @__PURE__ */ new Map();
+ 			contextsBySeq = /* @__PURE__ */ new Map();
+ 			inputs = /* @__PURE__ */ new Map();
++			/** Event seqs shadowed by surface replacements (folded from replace surfaceOps). */
++			shadowed = /* @__PURE__ */ new Set();
+ 			locationIndex = new ConversationLocationIndex();
+ 			dirty = /* @__PURE__ */ new Set();
+ 			revised = /* @__PURE__ */ new Set();
+@@ -6371,6 +6373,7 @@
+ 				this.hasMore = hasMore;
+ 				const sorted = [...entries].sort((left, right) => left.event.seq - right.event.seq);
+ 				for (const entry of sorted) this.inputs.set(entry.event.seq, entry);
++				this.scanShadowed(sorted);
+ 				this.locationIndex.rebuild(sorted);
+ 				this.timelineDirty = true;
+ 				for (const entry of sorted) this.matchInput(entry);
+@@ -6379,6 +6382,15 @@
+ 				for (const context of this.contexts.values()) this.dirty.add(context);
+ 				this.replacePending = true;
+ 				return "immediate";
++			}
++			/** Fold every replace surfaceOp in a window into the shadowed-seq set. */
++			scanShadowed(sorted) {
++				this.shadowed.clear();
++				for (const entry of sorted) {
++					if (!isReplacementSurfaceEvent(entry.event)) continue;
++					const op = entry.event.surfaceOp;
++					for (let seq = op.start; seq <= op.end; seq++) this.shadowed.add(seq);
++				}
+ 			}
+ 			/**
+ 			* Add one contiguous live tail event without scanning existing Contexts.
+@@ -6387,6 +6399,13 @@
+ 			*/
+ 			append(input) {
+ 				if (this.inputs.has(input.event.seq)) return "none";
++				if (isReplacementSurfaceEvent(input.event)) {
++					const op = input.event.surfaceOp;
++					for (let seq = op.start; seq <= op.end; seq++) this.shadowed.add(seq);
++					this.inputs.set(input.event.seq, input);
++					this.replaceWindow(this.sortedInputs(), this.hasMore);
++					return "immediate";
++				}
+ 				this.revised.clear();
+ 				this.inputs.set(input.event.seq, input);
+ 				let publication = "none";
+@@ -6419,6 +6438,7 @@
+ 				for (const entry of fresh) this.inputs.set(entry.event.seq, entry);
+ 				this.hasMore = hasMore;
+ 				const previousTimeline = this.locationIndex.snapshot();
++				this.scanShadowed(this.sortedInputs());
+ 				const changedLocations = this.locationIndex.rebuild(this.sortedInputs());
+ 				if (this.locationIndex.snapshot() !== previousTimeline) this.timelineDirty = true;
+ 				const affected = this.refreshMatchLocations(changedLocations);
+@@ -6505,6 +6525,7 @@
+ 				return [...this.inputs.values()].sort((left, right) => left.event.seq - right.event.seq);
+ 			}
+ 			matchInput(input) {
++				if (this.shadowed.has(input.event.seq)) return "none";
+ 				return this.dispatchInput(input, (definition, id, role) => this.acceptMatch(definition, id, role, input));
+ 			}
+ 			collectInput(input, pending) {
+@@ -7256,6 +7277,43 @@
+ 				if (this.blankBit) {
+ 					this.blankBit = false;
+ 					this.options.onEngaged?.(this);
++					this.notifier.markDirty();
++				}
++				return result;
++			}
++			/**
++			* Rewrite the last user message of this session and regenerate from it
++			* (host-side `session.editLastPrompt`). Only the most recent user
++			* message is editable; failures land in the snapshot's promptError.
++			* @param text - replacement plain text.
++			* @returns the prompt result (also mirrored into promptError on failure).
++			*/
++			async editLastPrompt(text) {
++				this.promptError = null;
++				this.lastAgentError = null;
++				this.notifier.markDirty();
++				let result;
++				try {
++					if (this.address === void 0) result = (await this.api.sessions.editLastPrompt({
++						sessionId: this.sessionId,
++						text
++					})).result;
++					else result = {
++						ok: false,
++						error: {
++							code: "subagent-not-resumable",
++							message: "subagent conversations are read-only",
++							details: { childSessionId: this.address.childSessionId }
++						}
++					};
++				} catch (error) {
++					result = transportError(error);
++				}
++				if (!result.ok) {
++					this.promptError = {
++						op: "edit-last-prompt",
++						error: result.error
++					};
+ 					this.notifier.markDirty();
+ 				}
+ 				return result;

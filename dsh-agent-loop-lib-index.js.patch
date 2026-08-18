@@ -1,0 +1,16 @@
+--- /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-agent-loop/lib/index.js.bak	2026-08-16 21:36:46
++++ /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-agent-loop/lib/index.js	2026-08-16 21:36:50
+@@ -551,7 +551,12 @@
+ 				});
+ 				phase.step = step;
+ 				try {
+-					for (const message of decision.messages) this.session.append("user/message", message, { surfaceOp: "append" });
++					for (const message of decision.messages) {
++						const tail = this.session.surface.nodes.at(-1);
++						const tailEvent = tail === void 0 ? void 0 : this.session.events[tail];
++						if (tailEvent?.type === "user/message" && tailEvent.data.id === message.id) continue;
++						this.session.append("user/message", message, { surfaceOp: "append" });
++					}
+ 					const stepEnd = await this.step(decision.assembly);
+ 					if (turnEnds === null || turnEnds.kind !== "max-tokens") turnEnds = stepEnd;
+ 				} finally {

@@ -1,0 +1,42 @@
+--- /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-connection/lib/client.js.bak	2026-08-16 21:36:55
++++ /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-connection/lib/client.js	2026-08-16 21:37:23
+@@ -5421,6 +5421,15 @@
+ 				kind: literal("success"),
+ 				text: string().optional()
+ 			}).optional()
++		});
++		/** session.editLastPrompt request payload. */
++		object({
++			sessionId: sessionIdSchema,
++			text: string()
++		});
++		/** session.editLastPrompt response value. */
++		const sessionEditLastPromptValueSchema = object({
++			accepted: literal(true)
+ 		});
+ 		/** Opaque attachment id after string-shape validation. */
+ 		const attachmentIdSchema = string().min(1);
+@@ -6079,6 +6088,7 @@
+ 			"session.rename": sessionRenameValueSchema,
+ 			"session.fork": sessionForkValueSchema,
+ 			"session.prompt": sessionPromptValueSchema,
++			"session.editLastPrompt": sessionEditLastPromptValueSchema,
+ 			"session.attachment": sessionAttachmentValueSchema,
+ 			"session.updateQueue": sessionUpdateQueueValueSchema,
+ 			"session.cancel": sessionCancelValueSchema,
+@@ -6291,6 +6301,7 @@
+ 				rename: (payload, signal) => this.callUnary("session.rename", payload, signal),
+ 				fork: (payload, signal) => this.callUnary("session.fork", payload, signal),
+ 				prompt: (payload, signal) => this.callUnary("session.prompt", payload, signal),
++				editLastPrompt: (payload, signal) => this.callUnary("session.editLastPrompt", payload, signal),
+ 				attachment: (payload, signal) => this.callUnary("session.attachment", payload, signal),
+ 				updateQueue: (payload, signal) => this.callUnary("session.updateQueue", payload, signal),
+ 				cancel: (payload, signal) => this.callUnary("session.cancel", payload, signal)
+@@ -9901,6 +9912,7 @@
+ 					case "session.rename": return this.api.sessions.rename(request);
+ 					case "session.fork": return this.api.sessions.fork(request);
+ 					case "session.prompt": return this.api.sessions.prompt(request);
++					case "session.editLastPrompt": return this.api.sessions.editLastPrompt(request);
+ 					case "session.attachment": return this.api.sessions.attachment(request);
+ 					case "session.updateQueue": return this.api.sessions.updateQueue(request);
+ 					case "session.cancel": return this.api.sessions.cancel(request);

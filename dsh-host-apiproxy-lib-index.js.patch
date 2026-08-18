@@ -1,0 +1,119 @@
+--- /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-host-apiproxy/lib/index.js.bak	2026-08-16 21:36:18
++++ /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-host-apiproxy/lib/index.js	2026-08-16 21:59:33
+@@ -624,6 +624,15 @@
+ 		text: z$1.string().optional()
+ 	}).optional()
+ });
++/** session.editLastPrompt request payload: the session and the replacement plain text. */
++const sessionEditLastPromptRequestSchema = z$1.object({
++	sessionId: sessionIdSchema,
++	text: z$1.string()
++});
++/** session.editLastPrompt response value. */
++const sessionEditLastPromptValueSchema = z$1.object({
++	accepted: z$1.literal(true)
++});
+ /** Opaque attachment id after string-shape validation. */
+ const attachmentIdSchema = z$1.string().min(1);
+ /** Durable image reference returned from the authenticated session lookup. */
+@@ -2869,6 +2878,81 @@
+ 				};
+ 				return hasImage ? serializeImageAdmission(agent, admit) : admit();
+ 			},
++			/**
++			* Rewrite the LAST user message of a session and regenerate from it,
++			* Codex-style: the new text replaces the previous user message AND all
++			* assistant/tool surface nodes that followed it (they are shadowed by a
++			* surface replace, never deleted from the append-only log), then the
++			* agent is woken to answer the edited prompt anew. Only the most recent
++			* user message is editable; everything before it stays read-only.
++			* @param request - `session.editLastPrompt` request.
++			* @returns accepted, or a business error (agent busy / nothing to edit /
++			*   empty text / rewrite rejected).
++			*/
++			async editLastPrompt(request) {
++				const { sessionId, text } = request.payload;
++				const resolved = await turnAgentFor(request, sessionId);
++				if ("refused" in resolved) return resolved.refused;
++				const agent = resolved.agent;
++				if (agent.status !== "idle") return err(request, {
++					code: "agent-busy",
++					message: "editing is unavailable while the agent is working",
++					details: {}
++				});
++				if (text.trim() === "") return err(request, {
++					code: "invalid-content",
++					message: "the edited prompt must contain text",
++					details: {}
++				});
++				const { session } = agent;
++				const nodes = session.surface.nodes;
++				let lastUserIndex = -1;
++				for (let i = nodes.length - 1; i >= 0; i--) {
++					const event = session.events[nodes[i]];
++					if (event?.type === "user/message" && event.data.source?.kind === "user") {
++						lastUserIndex = i;
++						break;
++					}
++				}
++				if (lastUserIndex === -1) return err(request, {
++					code: "nothing-to-edit",
++					message: "this session has no user message to edit",
++					details: {}
++				});
++				const startSeq = nodes[lastUserIndex];
++				const endSeq = nodes[nodes.length - 1];
++				const sourceEventSeqs = nodes.slice(lastUserIndex);
++				const message = createUserMessage({
++					content: [{
++						type: "text",
++						text
++					}],
++					source: {
++						kind: "user",
++						rpcId: request.rpcId
++					}
++				});
++				try {
++					session.append("user/message", message, {
++						surfaceOp: {
++							op: "replace",
++							start: startSeq,
++							end: endSeq
++						},
++						sourceEventSeqs
++					});
++				} catch (error) {
++					return err(request, {
++						code: "edit-rejected",
++						message: `unable to rewrite the last message: ${String(error)}`,
++						details: {}
++					});
++				}
++				agent.followup(message);
++				return ok(request, {
++					accepted: true
++				});
++			},
+ 			async attachment(request) {
+ 				const { sessionId, attachmentId } = request.payload;
+ 				let state;
+@@ -4703,6 +4787,10 @@
+ 		schema: sessionPromptRequestSchema,
+ 		invoke: (api, r) => api.sessions.prompt(r)
+ 	},
++	"session.editLastPrompt": {
++		schema: sessionEditLastPromptRequestSchema,
++		invoke: (api, r) => api.sessions.editLastPrompt(r)
++	},
+ 	"session.attachment": {
+ 		schema: sessionAttachmentRequestSchema,
+ 		invoke: (api, r) => api.sessions.attachment(r)
+@@ -5248,6 +5336,7 @@
+ 	"session.rename": sessionRenameValueSchema,
+ 	"session.fork": sessionForkValueSchema,
+ 	"session.prompt": sessionPromptValueSchema,
++	"session.editLastPrompt": sessionEditLastPromptValueSchema,
+ 	"session.attachment": sessionAttachmentValueSchema,
+ 	"session.updateQueue": sessionUpdateQueueValueSchema,
+ 	"session.cancel": sessionCancelValueSchema,
