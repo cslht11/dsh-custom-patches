@@ -124,11 +124,34 @@ done
 
 ---
 
+## 🛠 如何为这个仓库添加新功能（维护者）
+
+本仓库用于把 DSH 的自定义增强**以编译产物补丁**的形式备份与分发。新增功能流程：
+
+1. 在本地 DSH 的 `node_modules/@deepseek-ai/<包>/lib/` 里直接改代码（并保留 `*.bak` 原始备份）。
+2. 用 `diff` 生成补丁文件：
+   ```bash
+   diff -u <包>/lib/<文件>.bak <包>/lib/<文件> > <名>.patch
+   ```
+3. 补丁文件命名用相对于插件包的路径，如 `dsh-client-ui-conversation-lib-client.js.patch`（含 `rc.7` 时加 `.rc7`）。
+4. 更新 `apply-dsh-patches.sh` 里的 `FILES` 数组，加入新补丁的映射。
+5. 提交并推送：
+   ```bash
+   git add -A
+   git commit -m "feat: 添加 <功能说明>"
+   git push origin main
+   ```
+
+> 提交时仓库身份已固定为 `cslht11 <cslht11@163.com>`，推送走 gh 活跃账号 cslht11。
+
+---
+
 ## 📎 相关资源
 
 - DeepSeek Harness 官方仓库：<https://github.com/deepseek-ai/deepseek-harness>
 - DeepSeek Harness npm：`@deepseek-ai/dsh`
+- 本仓库：<https://github.com/cslht11/dsh-custom-patches>
 
 ---
 
-**维护**：cslht11 · 用于个人多设备同步 DSH 自定义增强。
+**维护**：cslht11 · 用于个人多设备同步 DSH 自定义增强，也欢迎有需要的朋友直接使用本补丁集。
