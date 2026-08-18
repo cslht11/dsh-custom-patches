@@ -53,8 +53,8 @@ else
   echo "     grep -rl 'editLastPrompt' /path/to/@deepseek-ai/*/lib/"
   echo "     grep -rl 'recallHistory' /path/to/@deepseek-ai/*/lib/"
   echo ""
-  echo "  3) 运行安装脚本尝试直接套补丁（若官方代码没大改则直接成功）："
-  echo "     bash apply-dsh-patches.sh"
+  echo "  3) 运行一键安装脚本尝试直接套补丁（含内置检测，若官方没大改则直接成功）："
+  echo "     bash install-dsh-custom.sh -y"
   echo ""
   echo "  4) 若失败，按 ADAPTING.md 重新适配，并更新 versions.md"
 fi
