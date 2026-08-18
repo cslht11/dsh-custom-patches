@@ -11,13 +11,13 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 EXPECT_VERSION="0.1.0-rc.7"
 
 # 补丁与目标文件映射（相对 @deepseek-ai 插件目录）
-# 格式: "相对插件路径|补丁文件名"
+# 格式: "相对插件路径|补丁在仓库中的相对路径"
 FILES=(
-  "dsh-host-apiproxy/lib/index.js|dsh-host-apiproxy-lib-index.js.patch"
-  "dsh-agent-loop/lib/index.js|dsh-agent-loop-lib-index.js.patch"
-  "dsh-client-connection/lib/client.js|dsh-client-connection-lib-client.js.patch"
-  "dsh-client-runtime/lib/client.js|dsh-client-runtime-lib-client.js.patch"
-  "dsh-client-ui-conversation/lib/client.js|dsh-client-ui-conversation-lib-client.js.rc7.patch"
+  "dsh-host-apiproxy/lib/index.js|patches/host-apiproxy/dsh-host-apiproxy-lib-index.js.patch"
+  "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch"
+  "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch"
+  "dsh-client-runtime/lib/client.js|patches/client-runtime/dsh-client-runtime-lib-client.js.patch"
+  "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.rc7.patch"
 )
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

@@ -25,16 +25,22 @@
 
 ---
 
-## 📦 包含的文件
+## 📦 项目结构
 
-| 文件 | 作用 |
-|---|---|
-| `apply-dsh-patches.sh` | 一键安装脚本（自动定位 DSH、校验版本、备份、应用补丁） |
-| `dsh-host-apiproxy-lib-index.js.patch` | 后端：新增 `session.editLastPrompt` 端点 |
-| `dsh-agent-loop-lib-index.js.patch` | 后端：turn() 时跳过同 id 的重复消息 |
-| `dsh-client-connection-lib-client.js.patch` | 前端：客户端 RPC 调用面 + schema 镜像 |
-| `dsh-client-runtime-lib-client.js.patch` | 前端：session.editLastPrompt + 折叠器感知 replace 阴影 |
-| `dsh-client-ui-conversation-lib-client.js.rc7.patch` | 前端：输入历史 + 编辑按钮 UI（rc.7 版） |
+```
+dsh-custom-patches/
+├── README.md            # 本文件
+├── apply-dsh-patches.sh # 一键安装脚本（自动定位、校验版本、备份、应用）
+├── check-update.sh      # 检测官方是否有新版本，评估是否需要重新适配
+├── versions.md          # 版本追踪表（官方版本 × 补丁适用性 × 官方是否内置功能）
+├── ADAPTING.md          # 适配官方新版的操作手册（面向维护者）
+└── patches/             # 补丁文件（按插件包分目录）
+    ├── host-apiproxy/            → 新增 session.editLastPrompt 端点
+    ├── agent-loop/               → turn() 跳过同 id 重复消息
+    ├── client-connection/        → 客户端 RPC 调用面 + schema 镜像
+    ├── client-runtime/           → editLastPrompt + 折叠器感知 replace 阴影
+    └── client-ui-conversation/   → 输入历史 + 编辑按钮 UI
+```
 
 > 这 5 个补丁对应的 5 个 npm 插件包：
 > `dsh-host-apiproxy` · `dsh-agent-loop` · `dsh-client-connection` · `dsh-client-runtime` · `dsh-client-ui-conversation`
@@ -84,17 +90,25 @@ dsh web
 
 ---
 
-## 🔄 如何更新到新版 DSH
+## 🔄 如何跟进官方更新
 
-官方升级版本会覆盖这些补丁（因为改的是 node_modules 编译产物）。升级流程：
+官方升级版本会覆盖这些补丁（因为改的是 node_modules 编译产物）。推荐用配套工具跟进：
 
 ```bash
+# 1) 检测官方是否有新版（自动对比本地/最新/适配版本）
+bash check-update.sh
+
+# 2) 升级官方
 npm install -g @deepseek-ai/dsh@<新版本>
-# 若新版本与 rc.7 编译产物差异过大，补丁可能失效，需检查/修正
+
+# 3) 重新应用补丁（若新版代码没大变则直接成功）
 bash apply-dsh-patches.sh
 ```
 
-> ⚠️ 若官方升级后补丁应用失败（`patch` 报错），说明新版本改了相应代码。需要基于新版本重新生成补丁，或到本仓库提 Issue 说明你遇到的版本。
+- **官方是否已内置我们的功能？** 看 [`versions.md`](versions.md) 的检测方法（grep 功能标记）。若官方已内置，则删除对应补丁、更新脚本即可，无需再适配。
+- **补丁失效了？** 按 [`ADAPTING.md`](ADAPTING.md) 的操作手册重新适配，并在 `versions.md` 追加新版本的一行。
+
+> ⚠️ 若官方升级后补丁应用失败（`patch` 报错），说明新版本改了相应代码，需要按 `ADAPTING.md` 重新适配。
 
 ---
 
