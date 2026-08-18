@@ -7,7 +7,7 @@
 
 ## 何时需要适配
 
-运行 `bash apply-dsh-patches.sh` 后，若日志出现：
+运行 `bash install-dsh-custom.sh -y` 后，若日志出现：
 ```
 ❌ 应用失败: <某个文件>
   可能是补丁已应用或文件已被改动
@@ -28,12 +28,19 @@ npm install -g @deepseek-ai/dsh@<新版本>
 ```
 
 ### 第 2 步：确认官方是否已内置我们的功能
+**推荐**直接用一键脚本（它内置了检测，会自动跳过官方已内置的补丁）：
+```bash
+bash install-dsh-custom.sh -y
+```
+脚本会逐条判断：目标文件已含功能标记 ⇒ 视为官方已内置 ⇒ 自动跳过；否则列入待应用。
+
+若想手动确认，也可 grep 功能标记：
 ```bash
 PLUGIN=<全局或临时 DSH 的 node_modules>/@deepseek-ai
 grep -rl "editLastPrompt" $PLUGIN/*/lib/ 2>/dev/null || echo "编辑重发：官方未内置，需保留补丁"
 grep -rl "recallHistory"  $PLUGIN/*/lib/ 2>/dev/null || echo "输入历史：官方未内置，需保留补丁"
 ```
-> 若官方某功能已内置 ⇒ 从 `patches/` 删除对应补丁，更新脚本 FILES 数组和 `versions.md`，就不用再适配它。
+> 若官方某功能已内置 ⇒ 从 `patches/` 删除对应补丁，更新脚本 `install-dsh-custom.sh` 与 `apply-dsh-patches.sh` 的 `FILES` 数组及 `versions.md`，就不用再适配它。
 
 ### 第 3 步：重新实现 / 重新生成补丁
 对每个失效的插件文件逐一手动重新改一遍（把功能代码补到新版对应位置），然后生成补丁：
@@ -46,7 +53,7 @@ diff -u lib/client.js.bak lib/client.js > /path/to/dsh-custom-patches/patches/cl
 > **技巧**：新版通常只是少数几行上下文变了。可先看旧补丁哪个 hunk 失败（`patch` 会输出 `Hunk #N failed`），只修正那一处，其余沿用。
 
 ### 第 4 步：更新脚本与追踪表
-- 把新补丁文件名更新到 `apply-dsh-patches.sh` 的 `FILES` 数组
+- 把新补丁文件名更新到 `install-dsh-custom.sh` 与 `apply-dsh-patches.sh` 的 `FILES` 数组（两者都改，保持一致）
 - 在 `versions.md` 追加新版本一行
 - 提交：
 ```bash
@@ -57,7 +64,7 @@ git push
 ```
 
 ### 第 5 步：验证
-在其他设备 / 干净环境跑一遍 `apply-dsh-patches.sh` 确认成功，再重启 `dsh web` 实测功能。
+在其他设备 / 干净环境跑一遍 `bash install-dsh-custom.sh -y` 确认成功，再重启 `dsh web` 实测功能。
 
 ---
 

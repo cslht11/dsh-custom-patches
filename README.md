@@ -178,6 +178,7 @@ dsh-custom-patches/
 ├── check-update.sh         # 检测官方是否有新版本，评估是否需要重新适配
 ├── versions.md             # 版本追踪表（官方版本 × 补丁适用性 × 官方是否内置功能）
 ├── ADAPTING.md             # 适配官方新版的操作手册（面向维护者）
+├── CONTRIBUTING.md         # 贡献指南（怎么报问题、加功能、适配、改进文档）
 ├── LICENSE                 # MIT 许可证
 └── patches/                # 补丁文件（按插件包分目录）
     ├── host-apiproxy/            → 新增 session.editLastPrompt 端点
@@ -202,6 +203,8 @@ dsh-custom-patches/
 - **想从源码层面改 DSH 本身**：那是另一条路——fork DeepSeek Harness 官方源码再改。请注意官方 [CONTRIBUTING.md](https://github.com/deepseek-ai/deepseek-harness/blob/master/CONTRIBUTING.md) 明确**暂不接受外部 PR**，所以这两个功能目前只能通过本补丁方式获得。
 
 **想反馈问题 / 提建议 / 问问题**：在仓库的 **Issues** 里新建即可（已开启），或发邮件到 <heitieya@163.com>。
+
+**想直接动手贡献？** 完整的流程、规范与验证要求见 **[CONTRIBUTING.md](CONTRIBUTING.md)**（报问题 / 新增补丁 / 适配新版 / 改进文档）。
 
 ---
 
