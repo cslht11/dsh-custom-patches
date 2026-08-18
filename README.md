@@ -164,7 +164,7 @@ done
    git push origin main
    ```
 
-> 提交时仓库身份已固定为 `cslht11 <cslht11@163.com>`，推送走 gh 活跃账号 cslht11。
+> 提交时仓库身份已固定为 `cslht11 <heitieya@163.com>`，推送走 gh 活跃账号 cslht11。
 
 ---
 
@@ -186,4 +186,4 @@ done
 
 ---
 
-**维护**：cslht11（<cslht11@163.com>）· 用于个人多设备同步 DSH 自定义增强，也欢迎有需要的朋友按 MIT 许可直接使用本补丁集。
+**维护**：cslht11（<heitieya@163.com>）· 用于个人多设备同步 DSH 自定义增强，也欢迎有需要的朋友按 MIT 许可直接使用本补丁集。
