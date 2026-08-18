@@ -14,10 +14,15 @@ GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 # 补丁集适配的目标版本（见 versions.md）
 TARGET="0.1.0-rc.7"
 
-# 1. 本地已装版本
+# 1. 本地已装版本（通过全局 npm root 找到 DSH）
 LOCAL=""
-if command -v dsh >/dev/null 2>&1; then
-  LOCAL=$(node -e "try{console.log(require('@deepseek-ai/dsh/package.json').version)}catch(e){console.log('')}" 2>/dev/null)
+GLOBAL_ROOT=$(npm root -g 2>/dev/null || echo "")
+DSH_PKG=""
+for cand in "$GLOBAL_ROOT/@deepseek-ai/dsh/package.json" "$HOME/.local/lib/node_modules/@deepseek-ai/dsh/package.json"; do
+  if [ -f "$cand" ]; then DSH_PKG="$cand"; break; fi
+done
+if [ -n "$DSH_PKG" ]; then
+  LOCAL=$(node -e "console.log(require('$DSH_PKG').version)" 2>/dev/null)
 fi
 [ -z "$LOCAL" ] && LOCAL="(未找到本地 DSH)"
 echo -e "${GREEN}本地已装 DSH：${NC}$LOCAL"
@@ -34,7 +39,8 @@ echo -e "${YELLOW}官方最新版本：${NC}$LATEST"
 # 3. 判断
 echo ""
 if [ "$LATEST" = "$TARGET" ]; then
-  echo -e "${GREEN}✅ 官方最新版 = 补丁集适配版本（$TARGET），无需额外处理。${NC}"
+  echo -e "${GREEN}✅ 官方最新版 = 补丁集适配版本，无需额外处理。${NC}"
+  echo -e "   适配版本：${YELLOW}$TARGET${NC}"
 elif [ -n "$LOCAL" ] && [ "$LATEST" = "$LOCAL" ]; then
   echo -e "${GREEN}✅ 本地与官方均为 $LATEST。${NC}"
 else
