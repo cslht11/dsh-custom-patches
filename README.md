@@ -176,4 +176,14 @@ done
 
 ---
 
-**维护**：cslht11 · 用于个人多设备同步 DSH 自定义增强，也欢迎有需要的朋友直接使用本补丁集。
+## 📄 License
+
+本项目采用 [**MIT License**](LICENSE)（Copyright © 2026 cslht11）。
+
+即：允许任何人自由使用、复制、修改、合并、发布、分发、再许可和/或销售本软件副本；只需保留上述版权声明与许可声明。**本软件按"原样"提供，不附带任何明示或默示担保。**
+
+> 注意：本补丁集修改的是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的编译产物。DSH 本身的代码与许可以官方仓库 [LICENSE](https://github.com/deepseek-ai/deepseek-harness) 为准；本许可证仅覆盖本仓库中的补丁、脚本与文档等原创内容。
+
+---
+
+**维护**：cslht11（<cslht11@163.com>）· 用于个人多设备同步 DSH 自定义增强，也欢迎有需要的朋友按 MIT 许可直接使用本补丁集。
