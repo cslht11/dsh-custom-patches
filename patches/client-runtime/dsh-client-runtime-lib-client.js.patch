@@ -1,5 +1,5 @@
---- /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-runtime/lib/client.js.bak	2026-08-16 21:37:28
-+++ /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-runtime/lib/client.js	2026-08-16 22:05:11
+--- dsh-client-runtime/lib/client.js.bak	2026-08-16 21:37:28
++++ dsh-client-runtime/lib/client.js	2026-08-16 22:05:11
 @@ -6337,6 +6337,8 @@
  			contextsByKind = /* @__PURE__ */ new Map();
  			contextsBySeq = /* @__PURE__ */ new Map();

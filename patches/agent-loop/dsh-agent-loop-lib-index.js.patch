@@ -1,5 +1,5 @@
---- /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-agent-loop/lib/index.js.bak	2026-08-16 21:36:46
-+++ /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-agent-loop/lib/index.js	2026-08-16 21:36:50
+--- dsh-agent-loop/lib/index.js.bak	2026-08-16 21:36:46
++++ dsh-agent-loop/lib/index.js	2026-08-16 21:36:50
 @@ -551,7 +551,12 @@
  				});
  				phase.step = step;

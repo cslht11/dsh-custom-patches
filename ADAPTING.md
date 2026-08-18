@@ -7,7 +7,7 @@
 
 ## 何时需要适配
 
-运行 `bash apply-patches.sh` 后，若日志出现：
+运行 `bash apply-dsh-patches.sh` 后，若日志出现：
 ```
 ❌ 应用失败: <某个文件>
   可能是补丁已应用或文件已被改动
@@ -46,7 +46,7 @@ diff -u lib/client.js.bak lib/client.js > /path/to/dsh-custom-patches/patches/cl
 > **技巧**：新版通常只是少数几行上下文变了。可先看旧补丁哪个 hunk 失败（`patch` 会输出 `Hunk #N failed`），只修正那一处，其余沿用。
 
 ### 第 4 步：更新脚本与追踪表
-- 把新补丁文件名更新到 `apply-patches.sh` 的 `FILES` 数组
+- 把新补丁文件名更新到 `apply-dsh-patches.sh` 的 `FILES` 数组
 - 在 `versions.md` 追加新版本一行
 - 提交：
 ```bash
@@ -57,7 +57,7 @@ git push
 ```
 
 ### 第 5 步：验证
-在其他设备 / 干净环境跑一遍 `apply-patches.sh` 确认成功，再重启 `dsh web` 实测功能。
+在其他设备 / 干净环境跑一遍 `apply-dsh-patches.sh` 确认成功，再重启 `dsh web` 实测功能。
 
 ---
 

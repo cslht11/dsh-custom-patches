@@ -1,5 +1,5 @@
---- /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-host-apiproxy/lib/index.js.bak	2026-08-16 21:36:18
-+++ /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-host-apiproxy/lib/index.js	2026-08-16 21:59:33
+--- dsh-host-apiproxy/lib/index.js.bak	2026-08-16 21:36:18
++++ dsh-host-apiproxy/lib/index.js	2026-08-16 21:59:33
 @@ -624,6 +624,15 @@
  		text: z$1.string().optional()
  	}).optional()

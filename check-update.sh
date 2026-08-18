@@ -54,7 +54,7 @@ else
   echo "     grep -rl 'recallHistory' /path/to/@deepseek-ai/*/lib/"
   echo ""
   echo "  3) 运行安装脚本尝试直接套补丁（若官方代码没大改则直接成功）："
-  echo "     bash apply-patches.sh"
+  echo "     bash apply-dsh-patches.sh"
   echo ""
   echo "  4) 若失败，按 ADAPTING.md 重新适配，并更新 versions.md"
 fi

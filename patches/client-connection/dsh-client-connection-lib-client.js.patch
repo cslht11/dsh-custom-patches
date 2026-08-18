@@ -1,5 +1,5 @@
---- /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-connection/lib/client.js.bak	2026-08-16 21:36:55
-+++ /Users/csl/.local/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-client-connection/lib/client.js	2026-08-16 21:37:23
+--- dsh-client-connection/lib/client.js.bak	2026-08-16 21:36:55
++++ dsh-client-connection/lib/client.js	2026-08-16 21:37:23
 @@ -5421,6 +5421,15 @@
  				kind: literal("success"),
  				text: string().optional()
