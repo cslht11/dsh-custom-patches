@@ -37,21 +37,21 @@
 
 | 平台 | 是否支持 | 说明 |
 |---|---|---|
-| **macOS** | ✅ 原生支持 | 自带的 `bash`/`patch`/`pgrep` 即可 |
+| **macOS** | ✅ 原生支持 | 自带的 `bash`/`patch` 即可（`pgrep` 也已内置） |
 | **Linux** | ✅ 原生支持 | 自带 `patch`；部分精简发行版需 `sudo apt install patch` |
-| **Windows** | ⚠️ 需要额外准备 | 需安装 **Git Bash**（自带 bash 与 git），并准备 **GNU patch** 与 **pgrep**（例：经 `choco install patch`，或使用 MSYS2/Git for Windows 配套工具） |
+| **Windows** | ✅ 装完 Git for Windows 即可 | **Git for Windows 已自带** `bash`、`diff`、`patch` 与 `git`，无需再装。唯一用到的 `pgrep` 只在「重启」那一条命令里出现，Windows 用 `taskkill` 替代即可（见下） |
 
 **统一前置条件**（任意平台）：
 - 已安装 **Node.js**（含 `npm`）
-- 已用 npm **全局安装 `@deepseek-ai/dsh@0.1.0-rc.7`**（版本必须匹配，否则脚本会拒绝）
+- 已用 npm **全局安装 `@deepseek-ai/dsh@0.1.0-rc.7`**（版本必须匹配，否则脚本会拒绝）；或用源码构建（见「源码构建（monorepo）用户」）
 
-> 对 Windows 用户：若你的 DSH 运行在 WSL / 云主机 / 服务器（Linux）上，走 Linux 支持即可，无需在 Windows 本机装补丁。
+> **不装命令行工具也能用**：最省事的办法是把这个仓库链接（`https://github.com/cslht11/dsh-custom-patches`）发给你的 AI 助手，让它按本文档的「快速开始」在你的机器上完成安装与配置——它会自行处理 Windows 的 `taskkill` 等差异。
 
 ---
 
 ## 🚀 快速开始（各平台通用）
 
-只需要三步。**推荐用 HTTPS 克隆**（无需配置 SSH key）。
+一共四步，**推荐用 HTTPS 克隆**（无需配置 SSH key）。把这整段丢给 AI 也能照着完成：
 
 ```bash
 # 1) 安装匹配版本的 DSH（已装且版本正确可跳过）
@@ -65,9 +65,12 @@ cd dsh-custom-patches
 # 3) 一键安装（-y 跳过交互确认；脚本会自动定位 DSH、校验版本、检测官方是否已内置、备份并应用）
 bash install-dsh-custom.sh -y
 
-# 4) 重启并验证
+# 4) 重启 DSH（macOS / Linux）
 kill $(pgrep -f 'dsh web') 2>/dev/null && sleep 1; dsh web
 ```
+
+> **Windows 重启**：把上一步换成 `taskkill //F //IM node.exe`（或结束对应 node 进程）后重新 `dsh web` 即可；`pgrep` 只在重启这里用到。
+> **源码构建（monorepo）用户**：把第 3 步换成 `DSH_SOURCE=/path/to/deepseek-harness bash install-dsh-custom.sh -y`，只需重建/重启你的开发服务（详见「源码构建（monorepo）用户」一节）。
 
 然后**硬刷新**浏览器页面（`Cmd+Shift+R` / `Ctrl+Shift+R`）：
 - 输入框按 **↑** 即可翻历史
@@ -125,6 +128,51 @@ kill $(pgrep -f 'dsh web') 2>/dev/null; sleep 1; dsh web
 - [x] 点击编辑 → 改内容 → 「保存并重新生成」能替换并重新生成
 
 > 也可用脚本自诊断：再次运行 `bash install-dsh-custom.sh -y`，若输出 *"All features already present (built-in or applied). Nothing to do."* 即表示所有功能已就位。
+
+---
+
+## 🧩 源码构建（monorepo）用户
+
+如果你不是用 `npm install -g` 装 DSH，而是**从源码克隆下来**（比如官方 [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 的 pnpm monorepo，自己 `pnpm` + `tsdown` 构建、直接 serve 各包产物），同样可以打这套补丁——**补丁内容完全通用**，只是目标文件位置不同，脚本已支持这种布局。
+
+### 第一步：确认两件事
+- 你有 DSH 的**源码仓库根目录**（就是一个含 `packages/` 和 `pnpm-workspace.yaml` 的目录），例如 `/path/to/deepseek-harness`
+- 各插件包**已构建**（生成了 `lib/` 产物；未构建时只有 `src/`，没有可打补丁的文件）
+
+### 第二步：设置 `DSH_SOURCE` 并运行一键脚本
+```bash
+export DSH_SOURCE=/path/to/deepseek-harness          # 指向源码仓库根
+bash install-dsh-custom.sh -y
+```
+脚本检测到 `DSH_SOURCE` 后会自动切换到源码布局：
+- 在 `<DSH_SOURCE>/packages/**/lib/` 下定位目标文件、备份、应用
+- **跳过 npm 版本校验**（源码没有 `0.1.0-rc.7` 这种版本号），但请确认你的源码 checkout 对应 rc.7 时代的代码
+- 应用完成后，**重建/重启你的 DSH 开发服务**（和你平时重启方式一致），再硬刷新页面
+
+### 源码布局下的目标文件（对应关系）
+| npm 包名 | 源码中的包目录 | 补丁目标文件（构建后） |
+|---|---|---|
+| `@deepseek-ai/dsh-host-apiproxy` | `packages/host/apiproxy` | `lib/index.js` |
+| `@deepseek-ai/dsh-agent-loop` | `packages/core/agent-loop` | `lib/index.js` |
+| `@deepseek-ai/dsh-client-connection` | `packages/client/connection` | `lib/client.js` |
+| `@deepseek-ai/dsh-client-runtime` | `packages/client/runtime` | `lib/client.js` |
+| `@deepseek-ai/dsh-client-ui-conversation` | `packages/client/ui-conversation` | `lib/client.js` |
+
+> 也就是说：一片补丁中写的 `dsh-xxx/lib/file.js`，在源码布局下就是 `<DSH_SOURCE>/packages/<对应目录>/lib/file.js`——内容一致，只是根不同。这也是为什么源码用户能直接趟通同一套补丁。
+
+### 如何恢复（源码布局）
+```bash
+for e in \
+  host/apiproxy/lib/index.js \
+  core/agent-loop/lib/index.js \
+  client/connection/lib/client.js \
+  client/runtime/lib/client.js \
+  client/ui-conversation/lib/client.js; do
+  cp "$DSH_SOURCE/packages/$e.bak" "$DSH_SOURCE/packages/$e"
+done
+```
+
+> 想了解源码布局的更多细节，或如何为一处失效补丁重新适配，见 [ADAPTING.md](ADAPTING.md)。
 
 ---
 

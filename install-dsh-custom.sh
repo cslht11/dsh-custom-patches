@@ -11,6 +11,14 @@
 #   3. backup (first time) + dry-run + apply + verify, all with colored logs
 #   4. Usage: bash install-dsh-custom.sh [-y]    (-y skips interactive confirm)
 #
+# Supports BOTH installation layouts:
+#   A. global npm install  (default): finds DSH in global node_modules
+#        target: <dsh>/node_modules/@deepseek-ai/<rel>
+#   B. source / monorepo    (DSH_SOURCE set): DSH built from source (pnpm + tsdown)
+#        target: <DSH_SOURCE>/packages/<source_rel>
+#        To use, set DSH_SOURCE to your deepseek-harness source root, e.g.
+#        export DSH_SOURCE=/path/to/deepseek-harness
+#
 # Adapted version: @deepseek-ai/dsh 0.1.0-rc.7 (see versions.md)
 # =============================================================================
 set -u
@@ -23,15 +31,17 @@ err()  { echo -e "${RED}[x]${NC} $*"; }
 
 EXPECT_VERSION="0.1.0-rc.7"
 
-# Entries: relative plugin path | patch path in repo | built-in marker (empty = skip detection)
-# If the target file already contains the marker, the feature is considered
-# already present in the official build, so that patch is skipped.
+# Entries: rel | patch | marker | source_rel
+#   rel         = path relative to the npm install plugin root (node_modules/@deepseek-ai/<rel>)
+#   patch       = path to the .patch file inside this repo
+#   marker      = feature marker used for "official already built-in" detection (empty = skip)
+#   source_rel  = path relative to <source>/packages, used in source/monorepo layout
 FILES=(
-  "dsh-host-apiproxy/lib/index.js|patches/host-apiproxy/dsh-host-apiproxy-lib-index.js.patch|editLastPrompt"
-  "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch|tailEvent?.type === \"user/message\""
-  "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch|editLastPrompt"
-  "dsh-client-runtime/lib/client.js|patches/client-runtime/dsh-client-runtime-lib-client.js.patch|editLastPrompt"
-  "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.rc7.patch|recallHistory"
+  "dsh-host-apiproxy/lib/index.js|patches/host-apiproxy/dsh-host-apiproxy-lib-index.js.patch|editLastPrompt|host/apiproxy/lib/index.js"
+  "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch|tailEvent?.type === \"user/message\"|core/agent-loop/lib/index.js"
+  "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch|editLastPrompt|client/connection/lib/client.js"
+  "dsh-client-runtime/lib/client.js|patches/client-runtime/dsh-client-runtime-lib-client.js.patch|editLastPrompt|client/runtime/lib/client.js"
+  "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.rc7.patch|recallHistory|client/ui-conversation/lib/client.js"
 )
 
 ASK=1
@@ -44,60 +54,95 @@ echo -e "${CYAN}   DSH custom enhancements: one-click installer (${EXPECT_VERSIO
 echo -e "${CYAN}============================================================${NC}"
 echo ""
 
-# ---------- 1. locate DSH install dir ----------
-info "Locating DSH install dir..."
-DSH_DIR=$(node -e "try{console.log(require.resolve('@deepseek-ai/dsh/package.json').replace('/package.json',''))}catch(e){console.log('')}" 2>/dev/null)
-if [ -z "$DSH_DIR" ]; then
-  DSH_DIR=$(find /usr/local/lib/node_modules "$HOME/.local/lib/node_modules" -name "dsh" -path "*/@deepseek-ai/*" -type d 2>/dev/null | head -1)
+# ---------- 1. locate DSH (npm layout) or source root (monorepo layout) ----------
+LAYOUT="npm"
+DSH_DIR=""
+SOURCE_ROOT=""
+
+if [ -n "${DSH_SOURCE:-}" ]; then
+  # source / monorepo layout requested via environment variable
+  SOURCE_ROOT="$(cd "$DSH_SOURCE" 2>/dev/null && pwd || echo "")"
+  if [ -z "$SOURCE_ROOT" ] || [ ! -d "$SOURCE_ROOT/packages" ]; then
+    err "DSH_SOURCE=$DSH_SOURCE is not a valid DSH source root (no 'packages/' dir)."
+    exit 1
+  fi
+  LAYOUT="source"
+  info "Using source/monorepo layout (DSH_SOURCE=$SOURCE_ROOT)"
+else
+  info "Locating DSH global install dir..."
+  DSH_DIR=$(node -e "try{console.log(require.resolve('@deepseek-ai/dsh/package.json').replace('/package.json',''))}catch(e){console.log('')}" 2>/dev/null)
+  if [ -z "$DSH_DIR" ]; then
+    DSH_DIR=$(find /usr/local/lib/node_modules "$HOME/.local/lib/node_modules" -name "dsh" -path "*/@deepseek-ai/*" -type d 2>/dev/null | head -1)
+  fi
+  if [ -z "$DSH_DIR" ]; then
+    err "Cannot find DSH global install dir."
+    echo "  If you installed DSH from source (monorepo), set DSH_SOURCE to the source root:"
+    echo "    export DSH_SOURCE=/path/to/deepseek-harness   # then rerun"
+    echo "  Otherwise install @deepseek-ai/dsh globally first: npm install -g @deepseek-ai/dsh"
+    exit 1
+  fi
+  ok "Found DSH: $DSH_DIR"
 fi
-if [ -z "$DSH_DIR" ]; then
-  err "Cannot find DSH install dir. Please install @deepseek-ai/dsh first."
-  exit 1
-fi
-ok "Found DSH: $DSH_DIR"
+
+# Compute the real target path for one entry under the active layout.
+# args: rel source_rel
+target_for() {
+  local rel="$1" srel="$2"
+  if [ "$LAYOUT" = "source" ]; then
+    echo "$SOURCE_ROOT/packages/$srel"
+  else
+    echo "$DSH_DIR/node_modules/@deepseek-ai/$rel"
+  fi
+}
 
 # ---------- 2. version diagnosis ----------
-VERSION=$(node -e "console.log(require('$DSH_DIR/package.json').version)" 2>/dev/null)
-echo -e "    local version: ${YELLOW}${VERSION:-unknown}${NC}"
-LATEST=$(npm view @deepseek-ai/dsh version 2>/dev/null || echo "")
-if [ -n "$LATEST" ]; then
-  echo -e "    npm latest:    ${YELLOW}$LATEST${NC}"
+if [ "$LAYOUT" = "npm" ]; then
+  VERSION=$(node -e "console.log(require('$DSH_DIR/package.json').version)" 2>/dev/null)
+  echo -e "    local version: ${YELLOW}${VERSION:-unknown}${NC}"
+  LATEST=$(npm view @deepseek-ai/dsh version 2>/dev/null || echo "")
+  if [ -n "$LATEST" ]; then
+    echo -e "    npm latest:    ${YELLOW}$LATEST${NC}"
+  else
+    warn "Cannot query npm latest (network/npm source). Continuing."
+  fi
+  if [ "$VERSION" != "$EXPECT_VERSION" ]; then
+    err "Version mismatch: patches target $EXPECT_VERSION, current is $VERSION"
+    echo ""
+    echo "  Install the matching version first:"
+    echo "    npm install -g @deepseek-ai/dsh@$EXPECT_VERSION"
+    echo ""
+    echo "  Or if official upgraded, re-adapt per ADAPTING.md first."
+    exit 1
+  fi
+  if [ -n "$LATEST" ] && [ "$LATEST" != "$EXPECT_VERSION" ]; then
+    warn "Official has newer version $LATEST (patches target $EXPECT_VERSION)."
+    warn "Patches may still apply; if official now bundles these features, check versions.md."
+  fi
 else
-  warn "Cannot query npm latest (network/npm source). Continuing to apply."
-fi
-
-if [ "$VERSION" != "$EXPECT_VERSION" ]; then
-  err "Version mismatch: patches target $EXPECT_VERSION, current is $VERSION"
-  echo ""
-  echo "  Install the matching version first:"
-  echo "    npm install -g @deepseek-ai/dsh@$EXPECT_VERSION"
-  echo ""
-  echo "  Or if official upgraded, re-adapt per ADAPTING.md first."
-  exit 1
-fi
-if [ -n "$LATEST" ] && [ "$LATEST" != "$EXPECT_VERSION" ]; then
-  warn "Official has newer version $LATEST (patches target $EXPECT_VERSION)."
-  warn "Patches may still apply; if official now bundles these features, check versions.md."
+  echo -e "    source layout: skip npm version check"
+  warn "Please make sure your source tree corresponds to the codebase for $EXPECT_VERSION"
+  warn "(patches apply to the built lib/ artifacts under packages/*)."
 fi
 echo ""
 
 # ---------- 3. built-in detection ----------
-PLUGIN_ROOT="$DSH_DIR/node_modules/@deepseek-ai"
-APPLY=()     # to apply: rel|patch
+APPLY=()     # to apply: rel|patch|source_rel
 SKIPPED=()   # skipped because built-in: rel|marker
 echo -e "${CYAN}--- built-in detection ---${NC}"
 for entry in "${FILES[@]}"; do
-  rel="${entry%%|*}"; rest="${entry#*|}"; patch="${rest%%|*}"; marker="${rest#*|}"
-  full="$PLUGIN_ROOT/$rel"
+  rel="${entry%%|*}"; rest="${entry#*|}"
+  patch="${rest%%|*}"; rest="${rest#*|}"
+  marker="${rest%%|*}"; srel="${rest#*|}"
+  full="$(target_for "$rel" "$srel")"
   if [ ! -f "$full" ]; then
-    warn "Target missing, skip: $rel"
+    warn "Target missing, skip: $rel  ($full)"
     continue
   fi
   if [ -n "$marker" ] && grep -qF "$marker" "$full" 2>/dev/null; then
-    warn "Official already contains marker \"$marker\" -> skip: $rel"
+    warn "Already contains marker \"$marker\" -> skip: $rel"
     SKIPPED+=("$rel|$marker")
   else
-    APPLY+=("$rel|$patch")
+    APPLY+=("$rel|$patch|$srel")
   fi
 done
 
@@ -117,8 +162,9 @@ fi
 # ---------- 4. backup + dry-run + apply + verify ----------
 OK=0; FAIL=0
 for entry in "${APPLY[@]}"; do
-  rel="${entry%%|*}"; patch="${entry#*|}"
-  full_path="$PLUGIN_ROOT/$rel"
+  rel="${entry%%|*}"; rest="${entry#*|}"
+  patch="${rest%%|*}"; srel="${rest#*|}"
+  full_path="$(target_for "$rel" "$srel")"
   patch_file="$SCRIPT_DIR/$patch"
 
   if [ ! -f "$patch_file" ]; then
@@ -154,11 +200,16 @@ fi
 echo -e "${CYAN}============================================================${NC}"
 echo ""
 echo -e "Next steps:"
-echo -e "  1. Restart DSH: ${YELLOW}kill $(pgrep -f 'dsh web') 2>/dev/null; dsh web${NC}"
+echo -e "  1. Restart DSH:"
+echo -e "     npm layout:    ${YELLOW}kill $(pgrep -f 'dsh web') 2>/dev/null; dsh web${NC}"
+echo -e "     source layout: restart your dev server / rebuild as you normally do"
 echo -e "  2. Hard-refresh the browser page (Cmd+Shift+R) to use the new features."
 if [ "$FAIL" -gt 0 ]; then
   echo ""
   echo -e "${RED}Some patches failed. Re-adapt per ADAPTING.md, or restore first:${NC}"
-  echo "    for e in dsh-host-apiproxy/lib/index.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-client-runtime/lib/client.js dsh-client-ui-conversation/lib/client.js; do cp \"$PLUGIN_ROOT/\$e.bak\" \"$PLUGIN_ROOT/\$e\"; done"
+  echo "    npm layout:"
+  echo "      for e in dsh-host-apiproxy/lib/index.js dsh-agent-loop/lib/index.js dsh-client-connection/lib/client.js dsh-client-runtime/lib/client.js dsh-client-ui-conversation/lib/client.js; do cp \"\$DSH_DIR/node_modules/@deepseek-ai/\$e.bak\" \"\$DSH_DIR/node_modules/@deepseek-ai/\$e\"; done"
+  echo "    source layout (DSH_SOURCE set):"
+  echo "      for e in host/apiproxy/lib/index.js core/agent-loop/lib/index.js client/connection/lib/client.js client/runtime/lib/client.js client/ui-conversation/lib/client.js; do cp \"\$DSH_SOURCE/packages/\$e.bak\" \"\$DSH_SOURCE/packages/\$e\"; done"
 fi
 echo ""
