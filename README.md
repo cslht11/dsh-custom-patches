@@ -228,6 +228,8 @@ dsh-custom-patches/
 ├── ADAPTING.md             # 适配官方新版的操作手册（面向维护者）
 ├── CONTRIBUTING.md         # 贡献指南（怎么报问题、加功能、适配、改进文档）
 ├── POSTMORTEM.md           # 事故复盘与补丁生成规范（避免重复踩坑）
+├── docs/
+│   └── SSH-REMOTE.md       # SSH 远程工作区插件 → 指向独立仓库 cslht11/dsh-ssh-remote
 ├── LICENSE                 # MIT 许可证
 └── patches/                # 补丁文件（按插件包分目录）
     ├── host-apiproxy/            → 新增 session.editLastPrompt 端点
