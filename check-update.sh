@@ -12,7 +12,7 @@ set -e
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 
 # 补丁集适配的目标版本（见 versions.md）
-TARGET="0.1.0-rc.7"
+TARGET="0.1.0-rc.8"
 
 # 1. 本地已装版本（通过全局 npm root 找到 DSH）
 LOCAL=""

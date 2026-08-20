@@ -1,0 +1,346 @@
+--- lib/client.js.bak	2026-08-19 20:09:28
++++ lib/client.js	2026-08-19 20:18:36
+@@ -140,6 +140,21 @@
+ 				return { kind: "success" };
+ 			}
+ 			/**
++			* Rewrite the last user message of a session and regenerate from it
++			* (host-side `session.editLastPrompt`). Only the most recent user
++			* message is editable.
++			* @param sessionId - target session id.
++			* @param text - replacement plain text.
++			* @returns the host prompt result (also mirrored into promptError on failure).
++			*/
++			async editLastPrompt(sessionId, text) {
++				const session = this.requireSessions().binding(sessionId)?.session;
++				if (session === void 0) throw new Error(`conversation.editLastPrompt: unknown session "${sessionId}"`);
++				const result = await session.editLastPrompt(text);
++				if (result.ok && typeof session.resync === "function") await session.resync().catch(() => {});
++				return result;
++			}
++			/**
+ 			* Create runtime-only draft images and their object URLs.
+ 			* @param files - browser files to register after MIME validation.
+ 			* @returns ordered draft descriptors.
+@@ -978,6 +993,8 @@
+ 			core = new InputMachine({ now: () => Date.now() });
+ 			noticeSeq = 0;
+ 			lastMirroredDraft = "";
++			/** Sent-message history for ArrowUp recall in the composer (newest last, deduped). */
++			sendHistory = [];
+ 			imageIds = [];
+ 			/** One image-only send at a time: Enter during the Host round-trip is a no-op. */
+ 			imageSendInFlight = false;
+@@ -1103,6 +1120,8 @@
+ 					this.notify("error", this.deps.commandImages.unsupportedNotice(before.claim?.token ?? before.draft));
+ 					return;
+ 				}
++				const sentText = this.snapshot.draft.trim();
++				if (sentText !== "" && this.sendHistory[this.sendHistory.length - 1] !== sentText) this.sendHistory.push(sentText);
+ 				this.run(this.core.dispatch({
+ 					type: "enter",
+ 					mode
+@@ -3531,6 +3550,8 @@
+ 			const safari = (0, react.useMemo)(() => isSafariBrowser(navigator), []);
+ 			const safariNativeShrinkRef = (0, react.useRef)(false);
+ 			const composingRef = (0, react.useRef)(false);
++			const historyIndexRef = (0, react.useRef)(-1);
++			const savedDraftRef = (0, react.useRef)("");
+ 			const onCompositionStart = () => {
+ 				composingRef.current = true;
+ 			};
+@@ -3621,6 +3642,39 @@
+ 				start: el.selectionStart ?? 0,
+ 				end: el.selectionEnd ?? el.selectionStart ?? 0
+ 			});
++			/**
++			* Recall sent messages with ArrowUp/ArrowDown, shell-history style.
++			* @param direction - -1 recalls older messages, +1 newer ones.
++			* @returns true when a recall was applied (caller preventDefaults).
++			*/
++			const recallHistory = (direction) => {
++				const history = keyboard?.sendHistory;
++				if (history === void 0 || history.length === 0) return false;
++				if (historyIndexRef.current >= history.length) historyIndexRef.current = -1;
++				const index = historyIndexRef.current;
++				if (direction < 0) {
++					const next = index + 1;
++					if (next >= history.length) return false;
++					if (index === -1) savedDraftRef.current = draft;
++					historyIndexRef.current = next;
++					keyboard.setDraft(history[history.length - 1 - next]);
++				} else {
++					if (index <= 0) {
++						historyIndexRef.current = -1;
++						keyboard.setDraft(savedDraftRef.current);
++						return index !== -1;
++					}
++					historyIndexRef.current = index - 1;
++					keyboard.setDraft(history[history.length - 1 - (index - 1)]);
++				}
++				requestAnimationFrame(() => {
++					const el = inputRef.current;
++					if (el === null) return;
++					el.setSelectionRange(el.value.length, el.value.length);
++					revealCaret(el.value.length);
++				});
++				return true;
++			};
+ 			const onKeyDown = (e) => {
+ 				if (workspaceTrigger) {
+ 					if (e.key === "Enter" || e.key === " ") {
+@@ -3652,7 +3706,26 @@
+ 					}
+ 				}
+ 				if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+-					if (keyboard.arbitrate(e.key === "ArrowUp" ? "up" : "down", composing) === "consumed") e.preventDefault();
++					if (keyboard.arbitrate(e.key === "ArrowUp" ? "up" : "down", composing) === "consumed") {
++						e.preventDefault();
++						return;
++					}
++					if (!composing && inputRef.current !== null) {
++						const caret = inputRef.current.selectionStart ?? 0;
++						if (e.key === "ArrowUp") {
++							const newline = draft.indexOf("\n");
++							if ((newline === -1 || caret <= newline) && recallHistory(-1)) {
++								e.preventDefault();
++								return;
++							}
++						} else {
++							const lastNewline = draft.lastIndexOf("\n");
++							if ((lastNewline === -1 || caret > lastNewline) && recallHistory(1)) {
++								e.preventDefault();
++								return;
++							}
++						}
++					}
+ 					return;
+ 				}
+ 				if (e.key === "Escape") {
+@@ -3692,6 +3765,7 @@
+ 				if (keyboard === void 0 || locked) return;
+ 				if (machineBusy) return;
+ 				const next = e.target.value;
++				historyIndexRef.current = -1;
+ 				safariNativeShrinkRef.current = safari && next.length < draft.length;
+ 				keyboard.setDraft(next);
+ 				keyboard.track(next, e.target.selectionStart ?? next.length);
+@@ -5283,8 +5357,98 @@
+ 			});
+ 		}
+ 		/** User and admitted-steering keyed Chat renderer. */
+-		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, renderMessageImages, t }) {
++		const UserMessageNodeView = (0, react.memo)(function UserMessageNodeView({ node, renderMessageImages, t, isLastUser = false, editLastPrompt }) {
+ 			const data = node.data;
++			const [editing, setEditing] = (0, react.useState)(false);
++			const [editText, setEditText] = (0, react.useState)("");
++			const [editBusy, setEditBusy] = (0, react.useState)(false);
++			const startEdit = () => {
++				setEditText(data.content.filter((block) => block.type === "text").map((block) => block.text).join("
++"));
++				setEditing(true);
++			};
++			const cancelEdit = () => {
++				setEditing(false);
++			};
++			const confirmEdit = async () => {
++				const next = editText.trim();
++				if (next === "" || editLastPrompt === void 0 || editBusy) return;
++				setEditBusy(true);
++				try {
++					await editLastPrompt(next);
++					setEditing(false);
++				} catch {
++					/* failure surfaces via the session snapshot's promptError; keep the editor open */
++				} finally {
++					setEditBusy(false);
++				}
++			};
++
++			if (editing) {
++				return (0, react_jsx_runtime.jsxs)("div", {
++					className: MessageItem_module_css_default.userRow,
++					style: {
++						width: "100%"
++					},
++					children: [(0, react_jsx_runtime.jsxs)("div", {
++						className: MessageItem_module_css_default.userStack,
++						style: {
++							maxWidth: "var(--dsh-composer-card-max-width)",
++							width: "100%"
++						},
++						children: [(0, react_jsx_runtime.jsxs)("div", {
++							className: MessageItem_module_css_default.bubble,
++							style: {
++								boxSizing: "border-box",
++								display: "flex",
++								flexDirection: "column",
++								width: "100%",
++								padding: 0,
++								overflow: "hidden"
++							},
++							children: [(0, react_jsx_runtime.jsx)("textarea", {
++								value: editText,
++								onChange: (event) => {
++									setEditText(event.target.value);
++								},
++								autoFocus: true,
++								"aria-label": t("message.editPrompt"),
++								style: {
++									boxSizing: "border-box",
++									width: "100%",
++									minHeight: "3em",
++									resize: "vertical",
++									border: "none",
++									outline: "none",
++									background: "transparent",
++									color: "inherit",
++									font: "inherit",
++									lineHeight: "inherit",
++									padding: "10px 16px"
++								}
++							}), (0, react_jsx_runtime.jsxs)("div", {
++								style: {
++									display: "flex",
++									justifyContent: "flex-end",
++									gap: "8px",
++									padding: "4px 12px 10px"
++								},
++								children: [(0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
++									variant: "outline",
++									disabled: editBusy,
++									onClick: cancelEdit,
++									children: t("message.cancelEdit")
++								}), (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
++									variant: "primary",
++									disabled: editBusy || editText.trim() === "",
++									onClick: confirmEdit,
++									children: editBusy ? t("message.editing") : t("message.saveEdit")
++								})]
++							})]
++						})]
++					})]
++				});
++			}
+ 			return (0, react_jsx_runtime.jsx)(UserStyleBubble, {
+ 				content: data.content,
+ 				renderMessageImages,
+@@ -5295,7 +5459,18 @@
+ 					time: data.time,
+ 					clock: "start",
+ 					className: MessageItem_module_css_default.actions,
+-					t
++					t,
++					extraActions: isLastUser && editLastPrompt !== void 0 ? (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Tooltip, {
++						label: t("message.editPrompt"),
++						side: "bottom",
++						children: (0, react_jsx_runtime.jsx)("button", {
++							type: "button",
++							className: MessageIconActions_module_css_default.action,
++							"aria-label": t("message.editPrompt"),
++							onClick: startEdit,
++							children: (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconEditOutline16, {})
++						})
++					}) : void 0
+ 				})
+ 			});
+ 		});
+@@ -5379,7 +5554,7 @@
+ 		//#endregion
+ 		//#region lib/types/client/chat/ChatNodeSeat.js
+ 		/** Subscribe and dispatch one stable Context key without observing sibling Nodes. */
+-		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, selectedCallId, cwd, openFile, inspectCall, forkAt, renderMessageImages, fileMentions, useSession, renderSlot, t }) {
++		const ChatNodeSeat = (0, react.memo)(function ChatNodeSeat({ nodeKey, selectedCallId, cwd, openFile, inspectCall, forkAt, renderMessageImages, fileMentions, useSession, renderSlot, editLastPrompt, lastUserKey, t }) {
+ 			const node = useSession((snapshot) => snapshot.chat.nodes.get(nodeKey));
+ 			const routedNode = node;
+ 			const owner = (0, react.useMemo)(() => node === void 0 ? null : {
+@@ -5389,7 +5564,9 @@
+ 				inspectCall,
+ 				forkAt,
+ 				renderMessageImages,
+-				fileMentions
++				fileMentions,
++				isLastUser: nodeKey === lastUserKey,
++				editLastPrompt
+ 			}, [
+ 				node,
+ 				selectedCallId,
+@@ -5398,7 +5575,10 @@
+ 				inspectCall,
+ 				forkAt,
+ 				renderMessageImages,
+-				fileMentions
++				fileMentions,
++				nodeKey,
++				lastUserKey,
++				editLastPrompt
+ 			]);
+ 			if (routedNode === void 0 || owner === null) return null;
+ 			const routedOwner = {
+@@ -5520,11 +5700,17 @@
+ 		* The chat view slot entry: pure component over the composed props; each
+ 		* ordered business Node crosses the keyed renderer seat.
+ 		*/
+-		function ChatView({ useSession, useSessions, useStore, renderSlot, sessionId, openFile, loadOlder, loadImage, inspectCall, chatScroll, forkAt, fileMentions, t }) {
++		function ChatView({ useSession, useSessions, useStore, renderSlot, sessionId, openFile, loadOlder, loadImage, inspectCall, chatScroll, forkAt, fileMentions, editLastPrompt, t }) {
+ 			const order = useSession((s) => s.chat.order);
+ 			const nodeStore = useSession((s) => s.chat.nodes);
+ 			const timeline = useSession((s) => s.chat.timeline);
+ 			const inbox = useSession((s) => s.queue);
++			const lastUserKey = (0, react.useMemo)(() => {
++				for (let i = order.length - 1; i >= 0; i--) {
++					if (nodeStore.get(order[i])?.kind === "user") return order[i];
++				}
++				return null;
++			}, [order, nodeStore]);
+ 			const cwd = useSessions((s) => s.byId[sessionId]?.cwd);
+ 			const running = useSession((s) => s.running);
+ 			const openState = useSession((s) => s.openState);
+@@ -5761,6 +5947,8 @@
+ 								renderMessageImages,
+ 								fileMentions,
+ 								renderSlot,
++								editLastPrompt,
++								lastUserKey,
+ 								t
+ 							}, nodeKey)),
+ 							running && (0, react_jsx_runtime.jsx)(TurnStatus, {
+@@ -6113,6 +6301,10 @@
+ 			"fileOpen.folderTitle": "无法打开文件夹",
+ 			"fileOpen.folderUnknown": "无法打开此文件夹",
+ 			"message.extraBlock": "附加内容块",
++			"message.editPrompt": "编辑这条消息",
++			"message.saveEdit": "保存并重新生成",
++			"message.cancelEdit": "取消",
++			"message.editing": "重新生成中…",
+ 			"message.contextInjection": "上下文注入",
+ 			"message.contextRecall": "跨会话召回",
+ 			"message.referenceSummary": "引用会话 · {labels}",
+@@ -6286,6 +6478,10 @@
+ 			"fileOpen.folderTitle": "Couldn’t open folder",
+ 			"fileOpen.folderUnknown": "Couldn’t open this folder",
+ 			"message.extraBlock": "Extra content block",
++			"message.editPrompt": "Edit this message",
++			"message.saveEdit": "Save and regenerate",
++			"message.cancelEdit": "Cancel",
++			"message.editing": "Regenerating…",
+ 			"message.contextInjection": "Context injection",
+ 			"message.contextRecall": "Session recall",
+ 			"message.referenceSummary": "Referenced session · {labels}",
+@@ -8496,7 +8692,7 @@
+ 		const messageDefinition = {
+ 			kind: "input-message",
+ 			target: "chat",
+-			match: (event) => event.type === "user/message" && (0, _deepseek_ai_dsh_client_runtime_client.isAppendSurfaceEvent)(event) && !isCompactionCheckpoint(event) ? {
++			match: (event) => event.type === "user/message" && ((0, _deepseek_ai_dsh_client_runtime_client.isAppendSurfaceEvent)(event) || (0, _deepseek_ai_dsh_client_runtime_client.isReplacementSurfaceEvent)(event) && event.data.source?.kind === "user") && !isCompactionCheckpoint(event) ? {
+ 				id: String(event.data.id),
+ 				role: "start"
+ 			} : null,
+@@ -10094,6 +10290,7 @@
+ 							scoped.loadOlder();
+ 						},
+ 						loadImage: (attachment) => conversation.resolveImage(sessionId, attachment),
++						editLastPrompt: (text) => conversation.editLastPrompt(sessionId, text),
+ 						inspectCall: (callId) => {
+ 							actions.setInspect({ callId });
+ 							actions.setView("trajectory");

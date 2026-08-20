@@ -22,7 +22,7 @@
 ## 🚦 开始之前
 
 1. **看是否已有类似 Issue**：先在 [Issues](https://github.com/cslht11/dsh-custom-patches/issues) 搜索，避免重复。
-2. **确认适用版本**：本项目只适配 `@deepseek-ai/dsh@0.1.0-rc.7`（见 [versions.md](versions.md)）。如果你想适配其他版本，是**另一类工作**（见下文「适配新版」）。
+2. **确认适用版本**：本项目只适配 `@deepseek-ai/dsh@0.1.0-rc.8`（见 [versions.md](versions.md)）。如果你想适配其他版本，是**另一类工作**（见下文「适配新版」）。
 
 ---
 

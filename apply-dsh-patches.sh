@@ -1,14 +1,14 @@
 #!/bin/bash
-# DSH 自定义补丁安装脚本（适配 @deepseek-ai/dsh 0.1.0-rc.7）
-# 在另一台安装好 DSH rc.7 的设备上运行此脚本即可应用所有自定义功能。
+# DSH 自定义补丁安装脚本（适配 @deepseek-ai/dsh 0.1.0-rc.8）
+# 在另一台安装好 DSH rc.8 的设备上运行此脚本即可应用所有自定义功能。
 # 用法: bash apply-dsh-patches.sh
 
 set -e
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
-# 目标 DSH 版本（本补丁集适配 rc.7）
-EXPECT_VERSION="0.1.0-rc.7"
+# 目标 DSH 版本（本补丁集适配 rc.8）
+EXPECT_VERSION="0.1.0-rc.8"
 
 # 补丁与目标文件映射（相对 @deepseek-ai 插件目录）
 # 格式: "相对插件路径|补丁在仓库中的相对路径"
@@ -17,7 +17,7 @@ FILES=(
   "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch"
   "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch"
   "dsh-client-runtime/lib/client.js|patches/client-runtime/dsh-client-runtime-lib-client.js.patch"
-  "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.rc7.patch"
+  "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.rc8.patch"
 )
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

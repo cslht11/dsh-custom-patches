@@ -19,7 +19,7 @@
 #        To use, set DSH_SOURCE to your deepseek-harness source root, e.g.
 #        export DSH_SOURCE=/path/to/deepseek-harness
 #
-# Adapted version: @deepseek-ai/dsh 0.1.0-rc.7 (see versions.md)
+# Adapted version: @deepseek-ai/dsh 0.1.0-rc.8 (see versions.md)
 # =============================================================================
 set -u
 
@@ -29,7 +29,7 @@ info() { echo -e "${CYAN}[i]${NC} $*"; }
 warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 err()  { echo -e "${RED}[x]${NC} $*"; }
 
-EXPECT_VERSION="0.1.0-rc.7"
+EXPECT_VERSION="0.1.0-rc.8"
 
 # Entries: rel | patch | marker | source_rel
 #   rel         = path relative to the npm install plugin root (node_modules/@deepseek-ai/<rel>)
@@ -41,7 +41,7 @@ FILES=(
   "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch|tailEvent?.type === \"user/message\"|core/agent-loop/lib/index.js"
   "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch|editLastPrompt|client/connection/lib/client.js"
   "dsh-client-runtime/lib/client.js|patches/client-runtime/dsh-client-runtime-lib-client.js.patch|editLastPrompt|client/runtime/lib/client.js"
-  "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.rc7.patch|recallHistory|client/ui-conversation/lib/client.js"
+  "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.rc8.patch|recallHistory|client/ui-conversation/lib/client.js"
 )
 
 ASK=1
