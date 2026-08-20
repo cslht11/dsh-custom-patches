@@ -1,5 +1,5 @@
---- lib/client.js.bak	2026-08-19 20:09:28
-+++ lib/client.js	2026-08-19 20:18:36
+--- @deepseek-ai/dsh-client-ui-conversation/lib/client.js.bak	2026-08-19 20:09:28
++++ @deepseek-ai/dsh-client-ui-conversation/lib/client.js	2026-08-19 20:18:36
 @@ -140,6 +140,21 @@
  				return { kind: "success" };
  			}
@@ -125,7 +125,7 @@
  				safariNativeShrinkRef.current = safari && next.length < draft.length;
  				keyboard.setDraft(next);
  				keyboard.track(next, e.target.selectionStart ?? next.length);
-@@ -5283,8 +5357,98 @@
+@@ -5283,8 +5357,97 @@
  			});
  		}
  		/** User and admitted-steering keyed Chat renderer. */
@@ -136,8 +136,7 @@
 +			const [editText, setEditText] = (0, react.useState)("");
 +			const [editBusy, setEditBusy] = (0, react.useState)(false);
 +			const startEdit = () => {
-+				setEditText(data.content.filter((block) => block.type === "text").map((block) => block.text).join("
-+"));
++				setEditText(data.content.filter((block) => block.type === "text").map((block) => block.text).join("\n"));
 +				setEditing(true);
 +			};
 +			const cancelEdit = () => {
