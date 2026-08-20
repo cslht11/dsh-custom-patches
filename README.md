@@ -227,6 +227,7 @@ dsh-custom-patches/
 ├── versions.md             # 版本追踪表（官方版本 × 补丁适用性 × 官方是否内置功能）
 ├── ADAPTING.md             # 适配官方新版的操作手册（面向维护者）
 ├── CONTRIBUTING.md         # 贡献指南（怎么报问题、加功能、适配、改进文档）
+├── POSTMORTEM.md           # 事故复盘与补丁生成规范（避免重复踩坑）
 ├── LICENSE                 # MIT 许可证
 └── patches/                # 补丁文件（按插件包分目录）
     ├── host-apiproxy/            → 新增 session.editLastPrompt 端点
