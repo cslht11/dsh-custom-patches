@@ -10,7 +10,14 @@ DSH 的 SSH 远程工作区能力已迁移到**独立仓库**：
 - **版权归属**：底层引擎来自上游 `dsh-remote`（`Copyright (c) 2026 dsh-remote contributors`，MIT）；多池并行与 rc.8 适配为本仓库增量修改（cslht11）
 - **第三方声明**：完整组件与许可证列表见独立仓库的 [THIRD_PARTY_NOTICES.md](https://github.com/cslht11/dsh-ssh-remote/blob/main/THIRD_PARTY_NOTICES.md)
 - **适配版本**：`@deepseek-ai/dsh@0.1.0-rc.8`（按 rc.8 用户 preset 挂载）
-- **安装**：`git clone https://github.com/cslht11/dsh-ssh-remote.git` → 按该仓库 README 安装
+- **安装（一键）**：
+  ```bash
+  git clone https://github.com/cslht11/dsh-ssh-remote.git
+  cd dsh-ssh-remote
+  bash install.sh    # 自动装依赖 + 注册 symlink + 创建 SSH 增强预设
+  kill $(pgrep -f 'dsh web') 2>/dev/null; dsh web
+  ```
+  然后新建会话，选预设 **「SSH 增强模式」** 即可。
 
 ## 为什么独立成仓库
 
