@@ -1,175 +1,174 @@
-# DSH 自定义增强补丁（Custom Enhancements for DeepSeek Harness）
+# DSH Custom Enhancements
 
-为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 添加两个官方暂未提供的实用功能：
-**① 输入框 ↑/↓ 键发送历史** 与 **② 编辑最后一条消息并重新生成（Codex 风格）**。
+Adds two practical features to the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI that are not yet provided officially:
+**① Composer ↑/↓ key send history** and **② Edit last message and regenerate (Codex-style)**.
 
-- 适配版本：**`@deepseek-ai/dsh@0.1.1-rc.2`**
-- 许可证：**MIT**（详见 [LICENSE](LICENSE)）
-- 维护：cslht11（<heitieya@163.com>）
+- Target version: **`@deepseek-ai/dsh@0.1.1-rc.2`**
+- License: **MIT** (see [LICENSE](LICENSE))
+- Maintainer: cslht11 (<heitieya@163.com>)
 
-> **这是什么 / 不是什么**：这是一套**编译产物补丁**，不是官方插件，也不是源码 fork。
-> 它通过 `diff`/`patch` 直接修补 DSH 已装好的 npm 包文件（`node_modules` 里的编译 JS），
-> 给 DSH 加上官方还没有的两个功能。**任何 npm 重装 / 升级 DSH 都会覆盖这些补丁，需重新应用。**
-
----
-
-## ✨ 功能简介
-
-### 1. 输入框上下键历史（类似终端）
-- 在输入框按 **↑** 调出上一条发送过的消息，继续按 ↑ 逐条往前翻；按 **↓** 往回翻
-- 编辑输入文字时，历史浏览位置自动重置
-- 兼容中文输入法（拼音选词时不会误触）、多行文本（光标在首/末行才触发）、连续相同内容去重
-
-### 2. 编辑最后一条消息并重新生成（Codex 风格）
-- 将鼠标移到**最后一条用户消息**上，会看到一个 **✏️ 编辑**按钮
-- 点击后消息变成可编辑文本框（预填原文）
-- 修改后点击 **"保存并重新生成"**：新文本替换原文，**丢弃它之后的所有 AI 回复/工具调用**，AI 用新内容重新生成
-- 更早的消息只保留复制，不可编辑；AI 正在工作时不允许编辑（防冲突）
-- 点击 **取消** 恢复原样
-
-**机制说明**：编辑通过 DSH 会话层的 **surface replace**（append-only 日志 + 阴影替换）实现——历史记录保留，但模型与界面只看替换后的新序列。
+> **What this is / isn't**: This is a set of **compiled-artifact patches**, not an official plugin, not a source fork.
+> It uses `diff`/`patch` to directly modify DSH's installed npm package files (compiled JS in `node_modules`),
+> adding two features that DSH doesn't have yet. **Any npm reinstall / DSH upgrade will overwrite these patches — re-apply after each upgrade.**
 
 ---
 
-## ⚠️ 平台与前置要求（先看这里）
+## ✨ Features
 
-安装脚本是用 **bash 编写、依赖 Unix 命令行工具** 的，因此：
+### 1. Composer Arrow-Up/Down History (terminal-like)
+- Press **↑** in the composer to recall the last sent message; keep pressing ↑ to go further back; **↓** to go forward
+- History position auto-resets when editing input text
+- Compatible with Chinese IME (no accidental trigger during pinyin composition), multi-line text (trigger only at first/last line), and consecutive duplicate dedup
 
-| 平台 | 是否支持 | 说明 |
+### 2. Edit Last Message and Regenerate (Codex-style)
+- Hover over the **last user message** to see an **✏️ Edit** button
+- Click to turn the message into an editable text box (pre-filled with original text)
+- After editing, click **"Save & regenerate"**: the new text replaces the original, **discards all AI replies / tool calls after it**, and AI regenerates from the new content
+- Earlier messages are preserved as read-only; editing is blocked while AI is working (conflict prevention)
+- Click **Cancel** to restore original
+
+**How it works**: Editing uses DSH session layer's **surface replace** (append-only log + shadow replacement) — history is preserved, but the model and UI only see the replaced sequence.
+
+---
+
+## ⚠️ Platform & Prerequisites
+
+The install script is written in **bash** and depends on **Unix command-line tools**:
+
+| Platform | Supported | Notes |
 |---|---|---|
-| **macOS** | ✅ 原生支持 | 自带的 `bash`/`patch` 即可（`pgrep` 也已内置） |
-| **Linux** | ✅ 原生支持 | 自带 `patch`；部分精简发行版需 `sudo apt install patch` |
-| **Windows** | ✅ 装完 Git for Windows 即可 | **Git for Windows 已自带** `bash`、`diff`、`patch` 与 `git`，无需再装。唯一用到的 `pgrep` 只在「重启」那一条命令里出现，Windows 用 `taskkill` 替代即可（见下） |
+| **macOS** | ✅ Native | Built-in `bash`/`patch` (`pgrep` also built-in) |
+| **Linux** | ✅ Native | `patch` built-in; some minimal distros need `sudo apt install patch` |
+| **Windows** | ✅ After Git for Windows | **Git for Windows includes** `bash`, `diff`, `patch`, and `git`. The only `pgrep` usage is in the restart command; Windows uses `taskkill` instead (see below) |
 
-**统一前置条件**（任意平台）：
-- 已安装 **Node.js**（含 `npm`）
-- 已用 npm **全局安装 `@deepseek-ai/dsh`**（当前最新适配 `0.1.1-rc.2`；**老版本 rc.7 / rc.8 用户无需升级**，安装脚本带版本号参数即可，见「老版本 DSH 用户」）；或用源码构建（见「源码构建（monorepo）用户」）
+**Universal prerequisites** (any platform):
+- **Node.js** (with `npm`) installed
+- **`@deepseek-ai/dsh`** installed globally via npm (currently targeting `0.1.1-rc.2`; **users on older rc.7 / rc.8 do NOT need to upgrade** — pass your version to the install script, see "Older DSH Versions" below); or built from source (see "Source Build (monorepo) Users" below)
 
-> **不装命令行工具也能用**：最省事的办法是把这个仓库链接（`https://github.com/cslht11/dsh-custom-patches`）发给你的 AI 助手，让它按本文档的「快速开始」在你的机器上完成安装与配置——它会自行处理 Windows 的 `taskkill` 等差异。
+> **No CLI tools needed**: The easiest path is to send this repo link (`https://github.com/cslht11/dsh-custom-patches`) to your AI assistant and let it follow the "Quick Start" section to install and configure on your machine — it will handle Windows `taskkill` differences automatically.
 
 ---
 
-## 🚀 快速开始（各平台通用）
+## 🚀 Quick Start (all platforms)
 
-一共四步，**推荐用 HTTPS 克隆**（无需配置 SSH key）。把这整段丢给 AI 也能照着完成：
+Four steps total, **HTTPS clone recommended** (no SSH key needed). You can paste this whole block to an AI assistant:
 
 ```bash
-# 1) 安装匹配版本的 DSH（已装且版本正确可跳过）
+# 1) Install matching DSH version (skip if already installed and correct version)
 npm install -g @deepseek-ai/dsh@0.1.1-rc.2
-dsh --version          # 应输出 0.1.1-rc.2
+dsh --version          # should output 0.1.1-rc.2
 
-# 2) 克隆本仓库（HTTPS，对所有人可用）
+# 2) Clone this repo (HTTPS, works for everyone)
 git clone https://github.com/cslht11/dsh-custom-patches.git
 cd dsh-custom-patches
 
-# 3) 一键安装（-y 跳过交互确认；脚本会自动定位 DSH、校验版本、检测官方是否已内置、备份并应用）
+# 3) One-click install (-y skips interactive confirm; script auto-locates DSH, validates version, detects built-ins, backs up, and applies)
 bash install-dsh-custom.sh -y
 
-# 4) 重启 DSH（macOS / Linux）
+# 4) Restart DSH (macOS / Linux)
 kill $(pgrep -f 'dsh web') 2>/dev/null && sleep 1; dsh web
 ```
 
-> **Windows 重启**：把上一步换成 `taskkill //F //IM node.exe`（或结束对应 node 进程）后重新 `dsh web` 即可；`pgrep` 只在重启这里用到。
-> **源码构建（monorepo）用户**：把第 3 步换成 `DSH_SOURCE=/path/to/deepseek-harness bash install-dsh-custom.sh -y`，只需重建/重启你的开发服务（详见「源码构建（monorepo）用户」一节）。
+> **Windows restart**: replace step 4 with `taskkill //F //IM node.exe` (or kill the node process) then `dsh web`. `pgrep` is only used in the restart command.
+> **Source build (monorepo) users**: replace step 3 with `DSH_SOURCE=/path/to/deepseek-harness bash install-dsh-custom.sh -y`, then rebuild/restart your dev server (see "Source Build (monorepo) Users" below).
 
-然后**硬刷新**浏览器页面（`Cmd+Shift+R` / `Ctrl+Shift+R`）：
-- 输入框按 **↑** 即可翻历史
-- 最后一条用户消息 **hover（鼠标悬停）** 出现 **✏️ 编辑** 按钮
+Then **hard-refresh** the browser page (`Cmd+Shift+R` / `Ctrl+Shift+R`):
+- Press **↑** in the composer to recall history
+- Hover over the **last user message** to see the **✏️ Edit** button
 
-> 也可以把本仓库链接 `https://github.com/cslht11/dsh-custom-patches` 直接发给你的 AI 助手，
-> 让它按本文档的「快速开始」步骤在你的机器上完成配置；文档中的命令均可直接执行。
+> You can also send this repo link `https://github.com/cslht11/dsh-custom-patches` directly to your AI assistant and let it follow the "Quick Start" steps to configure on your machine; all commands in this document are directly executable.
 
 ---
 
-## 🧩 老版本 DSH 用户（0.1.0-rc.7 / 0.1.0-rc.8）
+## 🧩 Older DSH Versions (0.1.0-rc.7 / 0.1.0-rc.8)
 
-**还没升级官方、仍用老版本 DSH？不需要升级**，直接给安装脚本加上你的版本号即可。仓库同时保留了 rc.7 / rc.8 / 0.1.1-rc.2 三个版本的适配（版本追踪见 [versions.md](versions.md)）：
+**Still on an older DSH version? No upgrade needed** — just pass your version to the install script. The repo keeps patches for rc.7 / rc.8 / 0.1.1-rc.2 (version tracking in [versions.md](versions.md)):
 
-| 你的 DSH 版本 | 一键安装命令 |
+| Your DSH Version | One-click Command |
 |---|---|
-| **0.1.1-rc.2**（最新） | `bash install-dsh-custom.sh -y`（默认） |
+| **0.1.1-rc.2** (latest) | `bash install-dsh-custom.sh -y` (default) |
 | **0.1.0-rc.8** | `bash install-dsh-custom.sh -y 0.1.0-rc.8` |
 | **0.1.0-rc.7** | `bash install-dsh-custom.sh -y 0.1.0-rc.7` |
-| 0.1.0-rc.6 及更早 | ❌ 无独立补丁文件（仓库自 rc.7 起发布），建议升级官方后使用 |
+| 0.1.0-rc.6 and earlier | ❌ No standalone patches (repo started publishing at rc.7); please upgrade DSH first |
 
-基础脚本同样支持：`bash apply-dsh-patches.sh 0.1.0-rc.8`。
+The base script also supports: `bash apply-dsh-patches.sh 0.1.0-rc.8`.
 
-> **为什么能跨版本？** 官方主要在 `dsh-client-ui-conversation` 包里调整界面布局，所以只需按版本切换这一个补丁（`.rc7` / `.rc8` / `.rc2` 三份文件都保留在 `patches/` 下）；其余 4 个补丁（host-apiproxy / agent-loop / client-runtime / client-connection）在 rc.7 → rc.8 → rc.2 各版本间**内容不变，直接通用**。
+> **Why cross-version works**: Official changes mainly touch `dsh-client-ui-conversation` layout, so only that one patch needs version switching (`.rc7` / `.rc8` / `.rc2` files are all kept under `patches/`); the other 4 patches (host-apiproxy / agent-loop / client-runtime / client-connection) are **identical across rc.7 → rc.8 → rc.2** and apply universally.
 >
-> **不想记版本？** 直接跑 `bash install-dsh-custom.sh -y`，若本机版本与默认适配版本不符，脚本会明确报错并提示你用哪个参数重试——不会误打补丁。
+> **Don't want to remember versions?** Just run `bash install-dsh-custom.sh -y`; if your local version doesn't match the default target, the script will explicitly error and tell you which parameter to retry with — it won't mis-patch.
 
 ---
 
-## 🛠 分步说明（想了解细节再看）
+## 🛠 Step-by-Step Details
 
-### 第 1 步：确认 DSH 版本
+### Step 1: Confirm DSH Version
 ```bash
-npm install -g @deepseek-ai/dsh@0.1.1-rc.2   # 装到匹配版本
-dsh --version                                 # 确认是 0.1.1-rc.2
+npm install -g @deepseek-ai/dsh@0.1.1-rc.2   # install matching version
+dsh --version                                 # confirm it's 0.1.1-rc.2
 ```
 
-### 第 2 步：克隆仓库
-HTTPS（推荐，任何机器可用）：
+### Step 2: Clone the Repo
+HTTPS (recommended, works everywhere):
 ```bash
 git clone https://github.com/cslht11/dsh-custom-patches.git
 cd dsh-custom-patches
 ```
-SSH（可选，需你已在自己机器上配好 GitHub SSH key）：
+SSH (optional, requires GitHub SSH key configured):
 ```bash
 git clone git@github.com:cslht11/dsh-custom-patches.git
 cd dsh-custom-patches
 ```
 
-### 第 3 步：运行安装脚本
-推荐用带诊断与内置检测的**一键脚本**：
+### Step 3: Run the Install Script
+Recommended: the **one-click script** with version diagnosis and built-in detection:
 ```bash
 bash install-dsh-custom.sh -y
 ```
-脚本会自动：
-1. 定位 DSH 安装目录（同时探测系统级与用户级全局路径）
-2. 读取本地版本并查询 npm 官方最新版，给出版本诊断
-3. **校验版本**（默认期望 `0.1.1-rc.2`；老版本用户加版本号即可，如 `bash install-dsh-custom.sh -y 0.1.0-rc.8`；不匹配会拒绝并提示正确用法）
-4. **检测官方是否已内置功能**——若目标文件已含功能标记（例如官方新版把这些功能收编了），自动跳过对应补丁
-5. 对需要应用的补丁**逐一备份（生成 `.bak`）并应用**
-6. 汇总报告 + 提示重启
+The script will automatically:
+1. Locate DSH install dir (probes both system-level and user-level global paths)
+2. Read local version and query npm for latest, giving a version diagnosis
+3. **Validate version** (default expects `0.1.1-rc.2`; older version users add version arg, e.g. `bash install-dsh-custom.sh -y 0.1.0-rc.8`; mismatch aborts with correct usage hint)
+4. **Detect if official already has the feature** — if the target file already contains feature markers (e.g. official bundled them), automatically skip that patch
+5. For patches that need applying: **backup each file (`.bak`) and apply**
+6. Summary report + restart hint
 
-> 备选：`bash apply-dsh-patches.sh`（功能相同，但没有版本诊断与内置检测；两者等效地应用同一套补丁，任选其一即可）。老版本用户同样加版本号：`bash apply-dsh-patches.sh 0.1.0-rc.8`。
+> Alternative: `bash apply-dsh-patches.sh` (same functionality, but no version diagnosis or built-in detection; both apply the same patch set). Older version users also add version arg: `bash apply-dsh-patches.sh 0.1.0-rc.8`.
 
-### 第 4 步：重启 DSH
+### Step 4: Restart DSH
 ```bash
 kill $(pgrep -f 'dsh web') 2>/dev/null; sleep 1; dsh web
 ```
 
-### 第 5 步：验收（确认安装成功）
-刷新页面后，检查以下**可观察信号**，全部满足即安装成功：
-- [x] 输入框按 **↑** 能翻出上一条消息
-- [x] 鼠标悬停到**最后一条用户消息**上出现 **✏️ 编辑** 按钮
-- [x] 点击编辑 → 改内容 → 「保存并重新生成」能替换并重新生成
+### Step 5: Verify (confirm installation success)
+After refreshing the page, check these **observable signals** — all met means success:
+- [x] Pressing **↑** in the composer recalls the previous message
+- [x] Hovering over the **last user message** shows the **✏️ Edit** button
+- [x] Clicking edit → changing content → "Save & regenerate" replaces and regenerates
 
-> 也可用脚本自诊断：再次运行 `bash install-dsh-custom.sh -y`，若输出 *"All features already present (built-in or applied). Nothing to do."* 即表示所有功能已就位。
+> Self-diagnosis via script: run `bash install-dsh-custom.sh -y` again; if it outputs *"All features already present (built-in or applied). Nothing to do."* then all features are in place.
 
 ---
 
-## 🧩 源码构建（monorepo）用户
+## 🧩 Source Build (monorepo) Users
 
-如果你不是用 `npm install -g` 装 DSH，而是**从源码克隆下来**（比如官方 [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) 的 pnpm monorepo，自己 `pnpm` + `tsdown` 构建、直接 serve 各包产物），同样可以打这套补丁——**补丁内容完全通用**，只是目标文件位置不同，脚本已支持这种布局。
+If you don't use `npm install -g` for DSH but instead **cloned the source** (e.g. official [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) pnpm monorepo, built with `pnpm` + `tsdown`, and serve packages directly), you can still apply these patches — **patches are fully portable**, only target file paths differ, and the script supports this layout.
 
-### 第一步：确认两件事
-- 你有 DSH 的**源码仓库根目录**（就是一个含 `packages/` 和 `pnpm-workspace.yaml` 的目录），例如 `/path/to/deepseek-harness`
-- 各插件包**已构建**（生成了 `lib/` 产物；未构建时只有 `src/`，没有可打补丁的文件）
+### Step 1: Confirm Two Things
+- You have the **DSH source repo root** (a directory containing `packages/` and `pnpm-workspace.yaml`), e.g. `/path/to/deepseek-harness`
+- Each plugin package has been **built** (produced `lib/` artifacts; if only `src/` exists, there's nothing to patch)
 
-### 第二步：设置 `DSH_SOURCE` 并运行一键脚本
+### Step 2: Set `DSH_SOURCE` and Run the One-click Script
 ```bash
-export DSH_SOURCE=/path/to/deepseek-harness          # 指向源码仓库根
+export DSH_SOURCE=/path/to/deepseek-harness          # point to source repo root
 bash install-dsh-custom.sh -y
 ```
-脚本检测到 `DSH_SOURCE` 后会自动切换到源码布局：
-- 在 `<DSH_SOURCE>/packages/**/lib/` 下定位目标文件、备份、应用
-- **跳过 npm 版本校验**（源码没有 `0.1.1-rc.2` 这种版本号），但请确认你的源码 checkout 对应 rc.2 时代的代码
-- 应用完成后，**重建/重启你的 DSH 开发服务**（和你平时重启方式一致），再硬刷新页面
+When the script detects `DSH_SOURCE`, it automatically switches to source layout:
+- Locates target files under `<DSH_SOURCE>/packages/**/lib/`, backs up, and applies
+- **Skips npm version validation** (source doesn't have `0.1.1-rc.2` version strings), but please ensure your source checkout matches rc.2-era code
+- After applying, **rebuild/restart your DSH dev server** (same as your usual restart flow), then hard-refresh the browser
 
-### 源码布局下的目标文件（对应关系）
-| npm 包名 | 源码中的包目录 | 补丁目标文件（构建后） |
+### Source Layout Target File Mapping
+| npm Package | Source Package Dir | Patch Target File (built) |
 |---|---|---|
 | `@deepseek-ai/dsh-host-apiproxy` | `packages/host/apiproxy` | `lib/index.js` |
 | `@deepseek-ai/dsh-agent-loop` | `packages/core/agent-loop` | `lib/index.js` |
@@ -177,9 +176,9 @@ bash install-dsh-custom.sh -y
 | `@deepseek-ai/dsh-client-runtime` | `packages/client/runtime` | `lib/client.js` |
 | `@deepseek-ai/dsh-client-ui-conversation` | `packages/client/ui-conversation` | `lib/client.js` |
 
-> 也就是说：一片补丁中写的 `dsh-xxx/lib/file.js`，在源码布局下就是 `<DSH_SOURCE>/packages/<对应目录>/lib/file.js`——内容一致，只是根不同。这也是为什么源码用户能直接趟通同一套补丁。
+> In other words: a patch path like `dsh-xxx/lib/file.js` maps to `<DSH_SOURCE>/packages/<corresponding-dir>/lib/file.js` in source layout — same content, different root. That's why source-build users can use the exact same patch set.
 
-### 如何恢复（源码布局）
+### How to Restore (source layout)
 ```bash
 for e in \
   host/apiproxy/lib/index.js \
@@ -191,13 +190,13 @@ for e in \
 done
 ```
 
-> 想了解源码布局的更多细节，或如何为一处失效补丁重新适配，见 [ADAPTING.md](ADAPTING.md)。
+> For more source-layout details or how to re-adapt a broken patch, see [ADAPTING.md](ADAPTING.md).
 
 ---
 
-## ↩️ 如何恢复原版（卸载补丁）
+## ↩️ How to Restore Original (uninstall patches)
 
-安装时脚本已为每个被改文件生成 `.bak` 备份。恢复只需把这些备份拷贝回去（**路径用 `npm root -g` 动态获取，兼容任意全局安装方式**）：
+The install script backs up each modified file as `.bak`. To restore, copy those backups back (path is dynamically obtained via `npm root -g`, works with any global install layout):
 
 ```bash
 PLUGIN="$(npm root -g)/@deepseek-ai/dsh/node_modules/@deepseek-ai"
@@ -213,105 +212,106 @@ done
 
 ---
 
-## 🔄 如何跟进官方更新
+## 🔄 Keeping Up with Official Updates
 
-官方升级会覆盖这些补丁（因为改的是 node_modules 编译产物）。推荐用配套工具跟进：
+Official upgrades overwrite these patches (because they modify `node_modules` compiled artifacts). Recommended workflow:
 
 ```bash
-# 1) 检测官方是否有新版（自动对比本地/最新/适配版本；也可指定版本：bash check-update.sh 0.1.0-rc.8）
+# 1) Check for new official version (auto-compares local/latest/targeted; can specify version: bash check-update.sh 0.1.0-rc.8)
 bash check-update.sh
 
-# 2) 升级官方
-npm install -g @deepseek-ai/dsh@<新版本>
+# 2) Upgrade official
+npm install -g @deepseek-ai/dsh@<new-version>
 
-# 3) 重新应用（含内置检测；若官方新版没大改则直接成功）
+# 3) Re-apply (includes built-in detection; succeeds directly if official didn't change much)
 bash install-dsh-custom.sh -y
 ```
 
-- **官方是否已内置我们的功能？** 一键脚本会自动检测并跳过已内置的补丁；也可手动用 [`versions.md`](versions.md) 里的 grep 方法确认。
-- **补丁失效了？** 按 [`ADAPTING.md`](ADAPTING.md) 的操作手册重新适配，并在 `versions.md` 追加新版本一行。
+- **Did official already bundle our features?** The one-click script auto-detects and skips built-in patches; you can also manually confirm using the grep method in [`versions.md`](versions.md).
+- **Patches broke?** Follow [`ADAPTING.md`](ADAPTING.md) to re-adapt and append a new version row in `versions.md`.
 
-> ⚠️ 若升级后 `patch` 报错，说明新版改了相应代码，需要按 `ADAPTING.md` 重新适配。
+> ⚠️ If `patch` errors after upgrade, the new version changed the relevant code — re-adapt per `ADAPTING.md`.
 
 ---
 
-## 📦 项目结构
+## 📦 Project Structure
 
 ```
 dsh-custom-patches/
-├── README.md               # 本文件
-├── install-dsh-custom.sh   # 【推荐】一键安装（诊断版本 + 检测官方是否内置 + 备份 + 应用；支持老版本参数）
-├── apply-dsh-patches.sh    # 基础安装脚本（自动定位、校验版本、备份、应用；支持老版本参数）
-├── check-update.sh         # 检测官方是否有新版本，评估是否需要重新适配（可指定版本）
-├── versions.md             # 版本追踪表（官方版本 × 补丁适用性 × 官方是否内置功能）
-├── ADAPTING.md             # 适配官方新版的操作手册（面向维护者）
-├── CONTRIBUTING.md         # 贡献指南（怎么报问题、加功能、适配、改进文档）
-├── POSTMORTEM.md           # 事故复盘与补丁生成规范（避免重复踩坑）
+├── README.md               # This file (English)
+├── README.zh.md            # 中文版
+├── install-dsh-custom.sh   # 【Recommended】One-click install (version diagnosis + built-in detection + backup + apply; supports older version args)
+├── apply-dsh-patches.sh    # Basic install script (auto-locate, validate version, backup, apply; supports older version args)
+├── check-update.sh         # Check if official has a new version, assess re-adaptation need (can specify version)
+├── versions.md             # Version tracking table (official version × patch compatibility × official built-in status)
+├── ADAPTING.md             # Operation manual for adapting to new official versions (for maintainers)
+├── CONTRIBUTING.md         # Contribution guide (issues, features, adaptations, docs)
+├── POSTMORTEM.md           # Postmortem and patch generation standards (avoid repeat mistakes)
 ├── docs/
-│   └── SSH-REMOTE.md       # SSH 远程工作区插件 → 指向独立仓库 cslht11/dsh-ssh-remote
-├── LICENSE                 # MIT 许可证
-└── patches/                # 补丁文件（按插件包分目录）
-    ├── host-apiproxy/            → 新增 session.editLastPrompt 端点
-    ├── agent-loop/               → turn() 跳过同 id 重复消息
-    ├── client-connection/        → 客户端 RPC 调用面 + schema 镜像
-    ├── client-runtime/           → editLastPrompt + 折叠器感知 replace 阴影
-    └── client-ui-conversation/   → 输入历史 + 编辑按钮 UI
+│   └── SSH-REMOTE.md       # SSH remote workspace plugin → points to separate repo cslht11/dsh-ssh-remote
+├── LICENSE                 # MIT License
+└── patches/                # Patch files (organized by plugin package)
+    ├── host-apiproxy/            → Adds session.editLastPrompt endpoint
+    ├── agent-loop/               → turn() skips duplicate messages with same id
+    ├── client-connection/        → Client RPC surface + schema mirror
+    ├── client-runtime/           → editLastPrompt + folder-aware replace shadow
+    └── client-ui-conversation/   → Input history + edit button UI
 ```
 
-> 这 5 个补丁对应 5 个 npm 插件包：`dsh-host-apiproxy` · `dsh-agent-loop` · `dsh-client-connection` · `dsh-client-runtime` · `dsh-client-ui-conversation`
+> These 5 patches correspond to 5 npm plugin packages: `dsh-host-apiproxy` · `dsh-agent-loop` · `dsh-client-connection` · `dsh-client-runtime` · `dsh-client-ui-conversation`
 
 ---
 
-## 🤔 我可以改它吗？如何贡献 / 联系
+## 🤔 Can I Modify This? How to Contribute / Contact
 
-**能，欢迎。** 本项目以 **MIT** 授权，你可以自由使用、修改、再分发。
+**Yes, contributions welcome.** This project is **MIT** licensed — free to use, modify, and redistribute.
 
-需要先理解它的形态，再决定怎么"改"：
+Understand its shape first, then decide how to "modify":
 
-- **想直接用这套功能**：clone → `bash install-dsh-custom.sh -y` 即可（见「快速开始」）。
-- **想给它加自己的新功能**：本项目是**补丁集**，二次开发的方式是——在你自己 DSH 的 `node_modules/@deepseek-ai/<包>/lib/` 里改代码，再用 `diff` 生成补丁加入本仓库的 `patches/`。完整流程见[「维护者如何新增功能」](#-维护者如何新增功能)。
-- **想从源码层面改 DSH 本身**：那是另一条路——fork DeepSeek Harness 官方源码再改。请注意官方 [CONTRIBUTING.md](https://github.com/deepseek-ai/deepseek-harness/blob/master/CONTRIBUTING.md) 明确**暂不接受外部 PR**，所以这两个功能目前只能通过本补丁方式获得。
+- **Want to use these features directly**: clone → `bash install-dsh-custom.sh -y` (see "Quick Start").
+- **Want to add your own features**: This repo is a **patch set**. To extend it, modify the compiled JS files in your local DSH's `node_modules/@deepseek-ai/<package>/lib/`, then generate a patch with `diff` and add it to `patches/` in this repo. Full workflow in [**How Maintainers Add Features**](#-how-maintainers-add-features) below.
+- **Want to modify DSH itself at source level**: That's a separate path — fork [deepseek-harness](https://github.com/deepseek-ai/deepseek-harness) and modify directly. Note that official [CONTRIBUTING.md](https://github.com/deepseek-ai/deepseek-harness/blob/master/CONTRIBUTING.md) **does not accept external PRs** at this time, so these two features are only available via this patch approach for now.
 
-**想反馈问题 / 提建议 / 问问题**：在仓库的 **Issues** 里新建即可（已开启），或发邮件到 <heitieya@163.com>。
+**Questions, feedback, issues**: open an **Issue** in this repo (enabled), or email <heitieya@163.com>.
 
-**想直接动手贡献？** 完整的流程、规范与验证要求见 **[CONTRIBUTING.md](CONTRIBUTING.md)**（报问题 / 新增补丁 / 适配新版 / 改进文档）。
+**Want to contribute directly?** Full process, standards, and verification requirements in **[CONTRIBUTING.md](CONTRIBUTING.md)** (issues / new patches / new version adaptations / docs).
 
 ---
 
-## 🛠 维护者如何新增功能
+## 🛠 How Maintainers Add Features
 
-> 适用人群：本仓库维护者（或想贡献新补丁的人）。
+> For: repo maintainers (or anyone contributing a new patch).
 
-1. 在本地 DSH 的 `node_modules/@deepseek-ai/<包>/lib/` 里直接改代码（并保留 `*.bak` 原始备份）。
-2. 用 `diff` 生成补丁文件：
+1. Directly modify compiled JS files in your local DSH's `node_modules/@deepseek-ai/<package>/lib/` (keep `*.bak` originals).
+2. Generate a patch file with `diff`:
    ```bash
-   diff -u <包>/lib/<文件>.bak <包>/lib/<文件> > <名>.patch
+   diff -u <package>/lib/<file>.bak <package>/lib/<file> > <name>.patch
    ```
-3. 补丁文件命名用相对于插件包的路径，如 `dsh-client-ui-conversation-lib-client.js.patch`（含版本号时加后缀，如 `.rc7`）。
-4. 更新脚本里的映射数组（`install-dsh-custom.sh` 与 `apply-dsh-patches.sh` 的 `FILES`），加入新补丁。
-5. 提交并推送：
+3. Name patches with paths relative to the plugin package, e.g. `dsh-client-ui-conversation-lib-client.js.patch` (add version suffix for version-specific patches, e.g. `.rc7`).
+4. Update the mapping array in `install-dsh-custom.sh` and `apply-dsh-patches.sh` (`FILES`), adding the new patch.
+5. Commit and push:
    ```bash
    git add -A
-   git commit -m "feat: 添加 <功能说明>"
+   git commit -m "feat: add <feature description>"
    git push origin main
    ```
 
-> 提交时仓库身份已固定为 `cslht11 <heitieya@163.com>`，推送走 gh 活跃账号 cslht11。
+> Commit identity is fixed as `cslht11 <heitieya@163.com>`; push goes through gh active account cslht11.
 
 ---
 
 ## 📄 License
 
-本项目采用 [**MIT License**](LICENSE)（Copyright © 2026 cslht11）。
+This project uses [**MIT License**](LICENSE) (Copyright © 2026 cslht11).
 
-即：允许任何人自由使用、复制、修改、合并、发布、分发、再许可和/或销售本软件副本；只需保留上述版权声明与许可声明。**本软件按"原样"提供，不附带任何明示或默示担保。**
+You are free to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of this software, provided you retain the above copyright notice and permission notice. **The software is provided "as is", without warranty of any kind.**
 
-> 注意：本补丁集修改的是 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的编译产物。DSH 本身的代码与许可以官方仓库 [LICENSE](https://github.com/deepseek-ai/deepseek-harness) 为准；本许可证仅覆盖本仓库中的补丁、脚本与文档等原创内容。
+> Note: This patch set modifies compiled artifacts of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). DSH's own code and license are governed by the official repo [LICENSE](https://github.com/deepseek-ai/deepseek-harness); this license only covers patches, scripts, and documentation in this repo.
 
 ---
 
-## 📎 相关资源
+## 📎 Related Resources
 
-- DeepSeek Harness 官方仓库：<https://github.com/deepseek-ai/deepseek-harness>
-- DeepSeek Harness npm：`@deepseek-ai/dsh`
-- 本仓库：<https://github.com/cslht11/dsh-custom-patches>
+- DeepSeek Harness official repo: <https://github.com/deepseek-ai/deepseek-harness>
+- DeepSeek Harness npm: `@deepseek-ai/dsh`
+- This repo: <https://github.com/cslht11/dsh-custom-patches>
