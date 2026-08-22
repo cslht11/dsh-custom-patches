@@ -1,4 +1,6 @@
 # DSH Custom Enhancements
+> 📖 [中文版](README.zh.md)
+
 
 Adds two practical features to the [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI that are not yet provided officially:
 **① Composer ↑/↓ key send history** and **② Edit last message and regenerate (Codex-style)**.
