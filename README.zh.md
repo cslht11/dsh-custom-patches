@@ -1,4 +1,6 @@
 # DSH 自定义增强补丁
+> 📖 [English](README.md)
+
 
 为 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Web GUI 添加两个官方暂未提供的实用功能：
 **① 输入框 ↑/↓ 键发送历史** 与 **② 编辑最后一条消息并重新生成（Codex 风格）**。
