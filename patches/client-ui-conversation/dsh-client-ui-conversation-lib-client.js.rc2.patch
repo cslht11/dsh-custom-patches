@@ -1,5 +1,5 @@
---- @deepseek-ai/dsh-client-ui-conversation/lib/client.js.bak	2026-08-22 00:00:00
-+++ @deepseek-ai/dsh-client-ui-conversation/lib/client.js	2026-08-22 00:00:01
+--- lib/client.js.bak	2026-08-22 07:35:42
++++ lib/client.js	2026-08-22 10:10:14
 @@ -140,6 +140,21 @@
  				return { kind: "success" };
  			}
@@ -125,7 +125,7 @@
  				const pending = pendingEditRef.current;
  				pendingEditRef.current = null;
  				safariNativeShrinkRef.current = safari && next.length < draft.length;
-@@ -5381,8 +5455,97 @@
+@@ -5381,8 +5455,103 @@
  			});
  		}
  		/** User and admitted-steering keyed Chat renderer. */
@@ -183,6 +183,12 @@
 +								onChange: (event) => {
 +									setEditText(event.target.value);
 +								},
++								onKeyDown: (event) => {
++									if (event.key === "Enter" && !event.shiftKey) {
++										event.preventDefault();
++										confirmEdit();
++									}
++								},
 +								autoFocus: true,
 +								"aria-label": t("message.editPrompt"),
 +								style: {
@@ -224,7 +230,7 @@
  			return (0, react_jsx_runtime.jsx)(UserStyleBubble, {
  				content: data.content,
  				renderMessageImages,
-@@ -5393,7 +5556,18 @@
+@@ -5393,7 +5562,18 @@
  					time: data.time,
  					clock: "start",
  					className: MessageItem_module_css_default.actions,
@@ -244,7 +250,7 @@
  				})
  			});
  		});
-@@ -5477,7 +5651,7 @@
+@@ -5477,7 +5657,7 @@
  		//#endregion
  		//#region lib/types/client/chat/ChatNodeSeat.js
  		/** Subscribe and dispatch one stable Context key without observing sibling Nodes. */
@@ -253,7 +259,7 @@
  			const node = useSession((snapshot) => snapshot.chat.nodes.get(nodeKey));
  			const routedNode = node;
  			const owner = (0, react.useMemo)(() => node === void 0 ? null : {
-@@ -5487,7 +5661,9 @@
+@@ -5487,7 +5667,9 @@
  				inspectCall,
  				forkAt,
  				renderMessageImages,
@@ -264,7 +270,7 @@
  			}, [
  				node,
  				selectedCallId,
-@@ -5496,7 +5672,10 @@
+@@ -5496,7 +5678,10 @@
  				inspectCall,
  				forkAt,
  				renderMessageImages,
@@ -276,7 +282,7 @@
  			]);
  			if (routedNode === void 0 || owner === null) return null;
  			const routedOwner = {
-@@ -5618,11 +5797,17 @@
+@@ -5618,11 +5803,17 @@
  		* The chat view slot entry: pure component over the composed props; each
  		* ordered business Node crosses the keyed renderer seat.
  		*/
@@ -295,7 +301,7 @@
  			const cwd = useSessions((s) => s.byId[sessionId]?.cwd);
  			const running = useSession((s) => s.running);
  			const openState = useSession((s) => s.openState);
-@@ -5859,6 +6044,8 @@
+@@ -5859,6 +6050,8 @@
  								renderMessageImages,
  								fileMentions,
  								renderSlot,
@@ -304,7 +310,7 @@
  								t
  							}, nodeKey)),
  							running && (0, react_jsx_runtime.jsx)(TurnStatus, {
-@@ -6211,6 +6398,10 @@
+@@ -6211,6 +6404,10 @@
  			"fileOpen.folderTitle": "无法打开文件夹",
  			"fileOpen.folderUnknown": "无法打开此文件夹",
  			"message.extraBlock": "附加内容块",
@@ -315,7 +321,7 @@
  			"message.contextInjection": "上下文注入",
  			"message.contextRecall": "跨会话召回",
  			"message.referenceSummary": "引用会话 · {labels}",
-@@ -6384,6 +6575,10 @@
+@@ -6384,6 +6581,10 @@
  			"fileOpen.folderTitle": "Couldn’t open folder",
  			"fileOpen.folderUnknown": "Couldn’t open this folder",
  			"message.extraBlock": "Extra content block",
@@ -326,7 +332,7 @@
  			"message.contextInjection": "Context injection",
  			"message.contextRecall": "Session recall",
  			"message.referenceSummary": "Referenced session · {labels}",
-@@ -8605,7 +8800,7 @@
+@@ -8605,7 +8806,7 @@
  		const messageDefinition = {
  			kind: "input-message",
  			target: "chat",
@@ -335,7 +341,7 @@
  				id: String(event.data.id),
  				role: "start"
  			} : null,
-@@ -10193,6 +10388,7 @@
+@@ -10193,6 +10394,7 @@
  							scoped.loadOlder();
  						},
  						loadImage: (attachment) => conversation.resolveImage(sessionId, attachment),
