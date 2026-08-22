@@ -43,7 +43,7 @@
 
 **统一前置条件**（任意平台）：
 - 已安装 **Node.js**（含 `npm`）
-- 已用 npm **全局安装 `@deepseek-ai/dsh@0.1.1-rc.2`**（版本必须匹配，否则脚本会拒绝）；或用源码构建（见「源码构建（monorepo）用户」）
+- 已用 npm **全局安装 `@deepseek-ai/dsh`**（当前最新适配 `0.1.1-rc.2`；**老版本 rc.7 / rc.8 用户无需升级**，安装脚本带版本号参数即可，见「老版本 DSH 用户」）；或用源码构建（见「源码构建（monorepo）用户」）
 
 > **不装命令行工具也能用**：最省事的办法是把这个仓库链接（`https://github.com/cslht11/dsh-custom-patches`）发给你的 AI 助手，让它按本文档的「快速开始」在你的机器上完成安装与配置——它会自行处理 Windows 的 `taskkill` 等差异。
 
@@ -81,6 +81,25 @@ kill $(pgrep -f 'dsh web') 2>/dev/null && sleep 1; dsh web
 
 ---
 
+## 🧩 老版本 DSH 用户（0.1.0-rc.7 / 0.1.0-rc.8）
+
+**还没升级官方、仍用老版本 DSH？不需要升级**，直接给安装脚本加上你的版本号即可。仓库同时保留了 rc.7 / rc.8 / 0.1.1-rc.2 三个版本的适配（版本追踪见 [versions.md](versions.md)）：
+
+| 你的 DSH 版本 | 一键安装命令 |
+|---|---|
+| **0.1.1-rc.2**（最新） | `bash install-dsh-custom.sh -y`（默认） |
+| **0.1.0-rc.8** | `bash install-dsh-custom.sh -y 0.1.0-rc.8` |
+| **0.1.0-rc.7** | `bash install-dsh-custom.sh -y 0.1.0-rc.7` |
+| 0.1.0-rc.6 及更早 | ❌ 无独立补丁文件（仓库自 rc.7 起发布），建议升级官方后使用 |
+
+基础脚本同样支持：`bash apply-dsh-patches.sh 0.1.0-rc.8`。
+
+> **为什么能跨版本？** 官方主要在 `dsh-client-ui-conversation` 包里调整界面布局，所以只需按版本切换这一个补丁（`.rc7` / `.rc8` / `.rc2` 三份文件都保留在 `patches/` 下）；其余 4 个补丁（host-apiproxy / agent-loop / client-runtime / client-connection）在 rc.7 → rc.8 → rc.2 各版本间**内容不变，直接通用**。
+>
+> **不想记版本？** 直接跑 `bash install-dsh-custom.sh -y`，若本机版本与默认适配版本不符，脚本会明确报错并提示你用哪个参数重试——不会误打补丁。
+
+---
+
 ## 🛠 分步说明（想了解细节再看）
 
 ### 第 1 步：确认 DSH 版本
@@ -109,12 +128,12 @@ bash install-dsh-custom.sh -y
 脚本会自动：
 1. 定位 DSH 安装目录（同时探测系统级与用户级全局路径）
 2. 读取本地版本并查询 npm 官方最新版，给出版本诊断
-3. **校验版本**是否为 `0.1.1-rc.2`（不匹配会拒绝并提示先升级）
+3. **校验版本**（默认期望 `0.1.1-rc.2`；老版本用户加版本号即可，如 `bash install-dsh-custom.sh -y 0.1.0-rc.8`；不匹配会拒绝并提示正确用法）
 4. **检测官方是否已内置功能**——若目标文件已含功能标记（例如官方新版把这些功能收编了），自动跳过对应补丁
 5. 对需要应用的补丁**逐一备份（生成 `.bak`）并应用**
 6. 汇总报告 + 提示重启
 
-> 备选：`bash apply-dsh-patches.sh`（功能相同，但没有版本诊断与内置检测；两者等效地应用同一套补丁，任选其一即可）。
+> 备选：`bash apply-dsh-patches.sh`（功能相同，但没有版本诊断与内置检测；两者等效地应用同一套补丁，任选其一即可）。老版本用户同样加版本号：`bash apply-dsh-patches.sh 0.1.0-rc.8`。
 
 ### 第 4 步：重启 DSH
 ```bash
@@ -199,7 +218,7 @@ done
 官方升级会覆盖这些补丁（因为改的是 node_modules 编译产物）。推荐用配套工具跟进：
 
 ```bash
-# 1) 检测官方是否有新版（自动对比本地/最新/适配版本）
+# 1) 检测官方是否有新版（自动对比本地/最新/适配版本；也可指定版本：bash check-update.sh 0.1.0-rc.8）
 bash check-update.sh
 
 # 2) 升级官方
@@ -221,9 +240,9 @@ bash install-dsh-custom.sh -y
 ```
 dsh-custom-patches/
 ├── README.md               # 本文件
-├── install-dsh-custom.sh   # 【推荐】一键安装（诊断版本 + 检测官方是否内置 + 备份 + 应用）
-├── apply-dsh-patches.sh    # 基础安装脚本（自动定位、校验版本、备份、应用）
-├── check-update.sh         # 检测官方是否有新版本，评估是否需要重新适配
+├── install-dsh-custom.sh   # 【推荐】一键安装（诊断版本 + 检测官方是否内置 + 备份 + 应用；支持老版本参数）
+├── apply-dsh-patches.sh    # 基础安装脚本（自动定位、校验版本、备份、应用；支持老版本参数）
+├── check-update.sh         # 检测官方是否有新版本，评估是否需要重新适配（可指定版本）
 ├── versions.md             # 版本追踪表（官方版本 × 补丁适用性 × 官方是否内置功能）
 ├── ADAPTING.md             # 适配官方新版的操作手册（面向维护者）
 ├── CONTRIBUTING.md         # 贡献指南（怎么报问题、加功能、适配、改进文档）

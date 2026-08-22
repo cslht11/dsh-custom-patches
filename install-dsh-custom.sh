@@ -9,7 +9,7 @@
 #      feature (greps a marker in the target file) -- if so, skips that patch
 #      to avoid duplication/conflict
 #   3. backup (first time) + dry-run + apply + verify, all with colored logs
-#   4. Usage: bash install-dsh-custom.sh [-y]    (-y skips interactive confirm)
+#  4. Usage: bash install-dsh-custom.sh [-y] [版本号]    (-y skips interactive confirm; 版本号可选，老版本用户指定用，缺省为最新 0.1.1-rc.2)
 #
 # Supports BOTH installation layouts:
 #   A. global npm install  (default): finds DSH in global node_modules
@@ -19,7 +19,7 @@
 #        To use, set DSH_SOURCE to your deepseek-harness source root, e.g.
 #        export DSH_SOURCE=/path/to/deepseek-harness
 #
-# Adapted version: @deepseek-ai/dsh 0.1.1-rc.2 (see versions.md)
+# Adapted versions: 0.1.0-rc.7 / 0.1.0-rc.8 / 0.1.1-rc.2 (default; see versions.md)
 # =============================================================================
 set -u
 
@@ -29,7 +29,49 @@ info() { echo -e "${CYAN}[i]${NC} $*"; }
 warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 err()  { echo -e "${RED}[x]${NC} $*"; }
 
-EXPECT_VERSION="0.1.1-rc.2"
+# 目标 DSH 版本：默认适配最新；第一个非 -y 参数可指定老版本（如 0.1.0-rc.8）
+DEFAULT_VERSION="0.1.1-rc.2"
+TARGET_VERSION="$DEFAULT_VERSION"
+
+ASK=1
+for arg in "$@"; do
+  case "$arg" in
+    -y) ASK=0 ;;
+    -*)
+      err "Unknown option: $arg"
+      echo "  Usage: bash install-dsh-custom.sh [-y] [版本号]"
+      exit 1
+      ;;
+    *)
+      if [ "$TARGET_VERSION" = "$DEFAULT_VERSION" ]; then
+        TARGET_VERSION="$arg"
+      else
+        err "Multiple version arguments given: $TARGET_VERSION and $arg"
+        exit 1
+      fi
+      ;;
+  esac
+done
+
+# ===== 版本 → ui-conversation 补丁后缀 映射 =====
+# 官方主要在 ui-conversation 包调整界面布局，该补丁按版本区分
+# （.rc7 / .rc8 / .rc2 均保留在 patches/ 下）；其余 4 个补丁在
+# rc.7 → rc.8 → rc.2 间内容一致，跨版本通用。
+case "$TARGET_VERSION" in
+  0.1.1-rc.2) UI_SUFFIX="rc2" ;;
+  0.1.0-rc.8) UI_SUFFIX="rc8" ;;
+  0.1.0-rc.7) UI_SUFFIX="rc7" ;;
+  0.1.0-rc.6)
+    err "0.1.0-rc.6 及更早没有单独保存补丁文件（本仓库自 rc.7 起发布）。"
+    echo " 建议升级官方：npm install -g @deepseek-ai/dsh@0.1.1-rc.2 后重试。"
+    exit 1
+    ;;
+  *)
+    err "Unsupported version: $TARGET_VERSION"
+    echo " Supported: 0.1.1-rc.2 (default) / 0.1.0-rc.8 / 0.1.0-rc.7"
+    exit 1
+    ;;
+esac
 
 # Entries: rel | patch | marker | source_rel
 #   rel         = path relative to the npm install plugin root (node_modules/@deepseek-ai/<rel>)
@@ -41,16 +83,14 @@ FILES=(
   "dsh-agent-loop/lib/index.js|patches/agent-loop/dsh-agent-loop-lib-index.js.patch|tailEvent?.type === \"user/message\"|core/agent-loop/lib/index.js"
   "dsh-client-connection/lib/client.js|patches/client-connection/dsh-client-connection-lib-client.js.patch|editLastPrompt|client/connection/lib/client.js"
   "dsh-client-runtime/lib/client.js|patches/client-runtime/dsh-client-runtime-lib-client.js.patch|editLastPrompt|client/runtime/lib/client.js"
-  "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.rc2.patch|recallHistory|client/ui-conversation/lib/client.js"
+  "dsh-client-ui-conversation/lib/client.js|patches/client-ui-conversation/dsh-client-ui-conversation-lib-client.js.${UI_SUFFIX}.patch|recallHistory|client/ui-conversation/lib/client.js"
 )
 
-ASK=1
-[ "${1:-}" = "-y" ] && ASK=0
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo -e "${CYAN}============================================================${NC}"
-echo -e "${CYAN}   DSH custom enhancements: one-click installer (${EXPECT_VERSION})${NC}"
+echo -e "${CYAN}   DSH custom enhancements: one-click installer (${TARGET_VERSION})${NC}"
 echo -e "${CYAN}============================================================${NC}"
 echo ""
 
@@ -105,22 +145,24 @@ if [ "$LAYOUT" = "npm" ]; then
   else
     warn "Cannot query npm latest (network/npm source). Continuing."
   fi
-  if [ "$VERSION" != "$EXPECT_VERSION" ]; then
-    err "Version mismatch: patches target $EXPECT_VERSION, current is $VERSION"
+  if [ "$VERSION" != "$TARGET_VERSION" ]; then
+    err "Version mismatch: patches target $TARGET_VERSION, current is $VERSION"
     echo ""
-    echo "  Install the matching version first:"
-    echo "    npm install -g @deepseek-ai/dsh@$EXPECT_VERSION"
-    echo ""
-    echo "  Or if official upgraded, re-adapt per ADAPTING.md first."
+    echo "  Choose one:"
+    echo "    a) Old-version user: rerun with your version as argument, e.g."
+    echo "       bash install-dsh-custom.sh -y $VERSION"
+    echo "    b) Upgrade to the target version:"
+    echo "       npm install -g @deepseek-ai/dsh@$TARGET_VERSION"
+    echo "    c) If official upgraded beyond this repo, re-adapt per ADAPTING.md first."
     exit 1
   fi
-  if [ -n "$LATEST" ] && [ "$LATEST" != "$EXPECT_VERSION" ]; then
-    warn "Official has newer version $LATEST (patches target $EXPECT_VERSION)."
+  if [ -n "$LATEST" ] && [ "$LATEST" != "$TARGET_VERSION" ]; then
+    warn "Official has newer version $LATEST (patches target $TARGET_VERSION)."
     warn "Patches may still apply; if official now bundles these features, check versions.md."
   fi
 else
   echo -e "    source layout: skip npm version check"
-  warn "Please make sure your source tree corresponds to the codebase for $EXPECT_VERSION"
+  warn "Please make sure your source tree corresponds to the codebase for $TARGET_VERSION"
   warn "(patches apply to the built lib/ artifacts under packages/*)."
 fi
 echo ""

@@ -1,7 +1,7 @@
 #!/bin/bash
 # check-update.sh — 检查 DSH 官方是否有新版本，并评估本补丁集是否需要重新适配
 #
-# 用法: bash check-update.sh
+# 用法: bash check-update.sh [版本号]   （版本号可选，缺省为当前适配版本 0.1.1-rc.2）
 # 说明:
 #   1. 读取本地已装 DSH 版本
 #   2. 查询 npm 官方最新版
@@ -11,8 +11,8 @@ set -e
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 
-# 补丁集适配的目标版本（见 versions.md）
-TARGET="0.1.1-rc.2"
+# 补丁集适配的目标版本（见 versions.md；可用第一个参数指定老版本）
+TARGET="${1:-0.1.1-rc.2}"
 
 # 1. 本地已装版本（通过全局 npm root 找到 DSH）
 LOCAL=""

@@ -11,6 +11,23 @@
 
 ---
 
+## 老版本安装
+
+**无需 checkout 历史 commit。** 当前仓库同时保留 rc.7 / rc.8 / 0.1.1-rc.2 的补丁文件，
+安装脚本支持版本参数自动匹配——ui-conversation 按版本取 `.rc7` / `.rc8` / `.rc2` 文件，
+其余 4 个补丁跨 rc.7 → rc.8 → rc.2 **内容一致，通用**：
+
+| 官方版本 | 一键安装命令 |
+|---|---|
+| 0.1.1-rc.2（最新） | `bash install-dsh-custom.sh -y` |
+| 0.1.0-rc.8 | `bash install-dsh-custom.sh -y 0.1.0-rc.8` |
+| 0.1.0-rc.7 | `bash install-dsh-custom.sh -y 0.1.0-rc.7` |
+| 0.1.0-rc.6 及更早 | 无独立补丁文件（仓库自 rc.7 起发布），需先升级官方 |
+
+基础脚本：`bash apply-dsh-patches.sh 0.1.0-rc.8`；检测脚本：`bash check-update.sh 0.1.0-rc.8`。
+
+---
+
 ## 检测方法
 
 ### 1. 官方是否内置了我们的功能
